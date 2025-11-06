@@ -1,0 +1,37 @@
+{
+  "name": "aiarmada/vouchers",
+  "description": "Flexible voucher and coupon system for Laravel with support for multiple redemption types, usage limits, expiry dates, and cart integration",
+  "license": "MIT",
+  "homepage": "https://github.com/aiarmada/commerce",
+  "support": {
+    "issues": "https://github.com/aiarmada/commerce/issues",
+    "source": "https://github.com/aiarmada/commerce"
+  },
+  "require": {
+    "php": "^8.4",
+    "aiarmada/commerce-support": "self.version",
+    "aiarmada/cart": "self.version",
+    "akaunting/laravel-money": "^6.0",
+    "illuminate/database": "^12.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "AIArmada\\Vouchers\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "AIArmada\\Vouchers\\VoucherServiceProvider"
+      ],
+      "aliases": {
+        "Voucher": "AIArmada\\Vouchers\\Facades\\Voucher"
+      }
+    }
+  },
+  "config": {
+    "sort-packages": true
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
