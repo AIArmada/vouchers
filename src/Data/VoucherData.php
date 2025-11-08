@@ -23,19 +23,12 @@ readonly class VoucherData
         public ?float $maxDiscount,
         public ?int $usageLimit,
         public ?int $usageLimitPerUser,
-        public int $timesUsed,
         public bool $allowsManualRedemption,
         public int|string|null $ownerId,
         public ?string $ownerType,
         public ?DateTimeInterface $startsAt,
         public ?DateTimeInterface $expiresAt,
         public VoucherStatus $status,
-        /** @var ?array<int|string, mixed> */
-        public ?array $applicableProducts,
-        /** @var ?array<int|string, mixed> */
-        public ?array $excludedProducts,
-        /** @var ?array<int|string, mixed> */
-        public ?array $applicableCategories,
         /** @var ?array<string, mixed> */
         public ?array $metadata,
     ) {}
@@ -66,16 +59,12 @@ readonly class VoucherData
             maxDiscount: $voucher->max_discount ? (float) $voucher->max_discount : null,
             usageLimit: $voucher->usage_limit,
             usageLimitPerUser: $voucher->usage_limit_per_user,
-            timesUsed: $voucher->times_used !== null ? (int) $voucher->times_used : 0,
             allowsManualRedemption: (bool) $voucher->allows_manual_redemption,
             ownerId: $voucher->owner_id,
             ownerType: $voucher->owner_type,
             startsAt: $voucher->starts_at,
             expiresAt: $voucher->expires_at,
             status: $status,
-            applicableProducts: $voucher->applicable_products,
-            excludedProducts: $voucher->excluded_products,
-            applicableCategories: $voucher->applicable_categories,
             metadata: $voucher->metadata,
         );
     }
@@ -105,22 +94,12 @@ readonly class VoucherData
             maxDiscount: isset($data['max_discount']) ? (float) $data['max_discount'] : null,
             usageLimit: isset($data['usage_limit']) ? (int) $data['usage_limit'] : null,
             usageLimitPerUser: isset($data['usage_limit_per_user']) ? (int) $data['usage_limit_per_user'] : null,
-            timesUsed: isset($data['times_used']) ? (int) $data['times_used'] : 0,
             allowsManualRedemption: (bool) ($data['allows_manual_redemption'] ?? false),
             ownerId: $data['owner_id'] ?? null,
             ownerType: isset($data['owner_type']) ? (string) $data['owner_type'] : null,
             startsAt: $startsAt,
             expiresAt: $expiresAt,
             status: VoucherStatus::from($data['status'] ?? VoucherStatus::Active->value),
-            applicableProducts: isset($data['applicable_products']) && is_array($data['applicable_products'])
-                ? $data['applicable_products']
-                : null,
-            excludedProducts: isset($data['excluded_products']) && is_array($data['excluded_products'])
-                ? $data['excluded_products']
-                : null,
-            applicableCategories: isset($data['applicable_categories']) && is_array($data['applicable_categories'])
-                ? $data['applicable_categories']
-                : null,
             metadata: isset($data['metadata']) && is_array($data['metadata']) ? $data['metadata'] : null,
         );
     }
@@ -142,16 +121,12 @@ readonly class VoucherData
             'max_discount' => $this->maxDiscount,
             'usage_limit' => $this->usageLimit,
             'usage_limit_per_user' => $this->usageLimitPerUser,
-            'times_used' => $this->timesUsed,
             'allows_manual_redemption' => $this->allowsManualRedemption,
             'owner_id' => $this->ownerId,
             'owner_type' => $this->ownerType,
             'starts_at' => $this->startsAt?->format('Y-m-d H:i:s'),
             'expires_at' => $this->expiresAt?->format('Y-m-d H:i:s'),
             'status' => $this->status->value,
-            'applicable_products' => $this->applicableProducts,
-            'excluded_products' => $this->excludedProducts,
-            'applicable_categories' => $this->applicableCategories,
             'metadata' => $this->metadata,
         ];
     }

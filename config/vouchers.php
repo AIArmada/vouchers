@@ -85,6 +85,7 @@ return [
     'table_names' => [
         'vouchers' => 'vouchers',
         'voucher_usage' => 'voucher_usage',
+        'voucher_wallets' => 'voucher_wallets',
     ],
 
     /*

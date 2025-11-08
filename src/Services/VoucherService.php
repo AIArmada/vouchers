@@ -12,6 +12,7 @@ use AIArmada\Vouchers\Exceptions\ManualRedemptionNotAllowedException;
 use AIArmada\Vouchers\Exceptions\VoucherNotFoundException;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherUsage;
+use AIArmada\Vouchers\Models\VoucherWallet;
 use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -257,6 +258,45 @@ class VoucherService
             ->get();
 
         return $result;
+    }
+
+    /**
+     * Add a voucher to the owner's wallet.
+     *
+     * @param  array<string, mixed>|null  $metadata
+     */
+    public function addToWallet(string $code, Model $owner, ?array $metadata = null): VoucherWallet
+    {
+        $voucher = $this->query()
+            ->where('code', $this->normalizeCode($code))
+            ->firstOrFail();
+
+        /** @var VoucherModel $voucher */
+        return VoucherWallet::create([
+            'voucher_id' => $voucher->id,
+            'owner_type' => $owner->getMorphClass(),
+            'owner_id' => $owner->getKey(),
+            'is_claimed' => true,
+            'claimed_at' => now(),
+            'metadata' => $metadata,
+        ]);
+    }
+
+    /**
+     * Remove a voucher from the owner's wallet (if not redeemed).
+     */
+    public function removeFromWallet(string $code, Model $owner): bool
+    {
+        $voucher = $this->query()
+            ->where('code', $this->normalizeCode($code))
+            ->firstOrFail();
+
+        /** @var VoucherModel $voucher */
+        return VoucherWallet::where('voucher_id', $voucher->id)
+            ->where('owner_type', $owner->getMorphClass())
+            ->where('owner_id', $owner->getKey())
+            ->where('is_redeemed', false)
+            ->delete() > 0;
     }
 
     protected function normalizeCode(string $code): string

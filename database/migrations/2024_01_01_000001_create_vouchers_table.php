@@ -11,7 +11,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create(config('vouchers.table_names.vouchers', 'vouchers'), function (Blueprint $table): void {
+        $tableName = config('vouchers.table_names.vouchers', 'vouchers');
+
+        Schema::create($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->nullableUuidMorphs('owner');
             $table->string('code')->unique();
@@ -30,7 +32,6 @@ return new class extends Migration
             // Usage limits
             $table->integer('usage_limit')->nullable();
             $table->integer('usage_limit_per_user')->nullable();
-            $table->integer('times_used')->default(0);
             $table->boolean('allows_manual_redemption')->default(false);
 
             // Validity period
@@ -38,22 +39,19 @@ return new class extends Migration
             $table->datetime('expires_at')->nullable();
             $table->string('status')->default('active'); // active, paused, expired, depleted
 
-            // Targeting (portable by default, overridable via config)
-            $jsonType = (string) commerce_json_column_type('vouchers', 'json');
-            $table->{$jsonType}('applicable_products')->nullable();
-            $table->{$jsonType}('excluded_products')->nullable();
-            $table->{$jsonType}('applicable_categories')->nullable();
-
             // Metadata
+            $jsonType = (string) commerce_json_column_type('vouchers', 'json');
             $table->{$jsonType}('metadata')->nullable();
 
             $table->timestamps();
-            $table->softDeletes();
 
             // Indexes
             $table->index('code');
             $table->index('status');
             $table->index(['starts_at', 'expires_at']);
+            $table->index(['owner_type', 'owner_id']); // For polymorphic owner queries
+            $table->index('type'); // For filtering by voucher type
+            $table->index('expires_at'); // For expiration checks
         });
 
         // Optional: create GIN indexes when using jsonb on PostgreSQL
@@ -62,9 +60,6 @@ return new class extends Migration
             commerce_json_column_type('vouchers', 'json') === 'jsonb'
             && Schema::getConnection()->getDriverName() === 'pgsql'
         ) {
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_applicable_products_gin_index ON \"{$tableName}\" USING GIN (\"applicable_products\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_excluded_products_gin_index ON \"{$tableName}\" USING GIN (\"excluded_products\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_applicable_categories_gin_index ON \"{$tableName}\" USING GIN (\"applicable_categories\")");
             DB::statement("CREATE INDEX IF NOT EXISTS vouchers_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
         }
     }

@@ -14,6 +14,8 @@ The voucher package has been successfully integrated with the AIArmada Cart pack
 |------|---------|-------|--------|
 | `src/Conditions/VoucherCondition.php` | Bridges vouchers to cart condition system | 198 | ✅ Complete |
 | `src/Traits/HasVouchers.php` | Adds voucher methods to Cart class | 230 | ✅ Complete |
+| `src/Traits/HasVoucherWallet.php` | Adds voucher wallet to any model | 125 | ✅ Complete |
+| `src/Models/VoucherWallet.php` | Voucher wallet model with polymorphic owner | 120 | ✅ Complete |
 | `src/Events/VoucherApplied.php` | Event dispatched when voucher applied | 27 | ✅ Complete |
 | `src/Events/VoucherRemoved.php` | Event dispatched when voucher removed | 27 | ✅ Complete |
 | `packages/core/src/Cart.php` | Updated to use HasVouchers trait | Modified | ✅ Complete |
@@ -100,6 +102,34 @@ VoucherRemoved(Cart $cart, VoucherData $voucher)
 - Trigger business logic
 - Integrate with external systems
 
+### 4. Voucher Wallet System
+
+```php
+trait HasVoucherWallet
+{
+    // Applied to User or any model
+}
+```
+
+**Provides Wallet Methods:**
+
+| Method | Purpose |
+|--------|--------|
+| `addVoucherToWallet($code)` | Save voucher for later use |
+| `removeVoucherFromWallet($code)` | Remove from wallet |
+| `hasVoucherInWallet($code)` | Check if saved |
+| `getAvailableVouchers()` | Get usable vouchers |
+| `getRedeemedVouchers()` | Get used vouchers |
+| `getExpiredVouchers()` | Get expired vouchers |
+| `markVoucherAsRedeemed($code)` | Mark as used |
+
+**Features:**
+- Polymorphic ownership (User, Store, Team, etc.)
+- Tracks claimed and redeemed status
+- Timestamp tracking (claimed_at, redeemed_at)
+- Custom metadata support
+- Automatic validation checks
+
 ---
 
 ## 📖 Usage Examples
@@ -153,13 +183,42 @@ Cart::applyVoucher('EXTRA5'); // 5% off
 $discount = Cart::getVoucherDiscount(); // 14.50
 ```
 
+### Voucher Wallet Usage
+
+```php
+use AIArmada\Vouchers\Traits\HasVoucherWallet;
+
+class User extends Model
+{
+    use HasVoucherWallet;
+}
+
+// Save voucher for later
+$user->addVoucherToWallet('SUMMER2024');
+
+// Check if saved
+if ($user->hasVoucherInWallet('SUMMER2024')) {
+    // Apply from wallet
+    Cart::applyVoucher('SUMMER2024');
+    
+    // Mark as redeemed
+    $user->markVoucherAsRedeemed('SUMMER2024');
+}
+
+// Get available vouchers
+$available = $user->getAvailableVouchers();
+foreach ($available as $wallet) {
+    echo $wallet->voucher->code;
+}
+```
+
 ---
 
 ## 🧪 Testing
 
 ### Integration Test Coverage
 
-20+ tests covering:
+39+ tests covering:
 - ✅ Applying percentage vouchers
 - ✅ Applying fixed amount vouchers
 - ✅ Invalid voucher rejection
@@ -174,6 +233,11 @@ $discount = Cart::getVoucherDiscount(); // 14.50
 - ✅ Event dispatching
 - ✅ Case-insensitive codes
 - ✅ Free shipping identification
+- ✅ Wallet: Add/remove vouchers
+- ✅ Wallet: Check existence
+- ✅ Wallet: Get available/redeemed/expired
+- ✅ Wallet: Mark as redeemed
+- ✅ Wallet: Service integration
 
 ### Run Tests
 
@@ -376,14 +440,16 @@ php artisan make:filament-resource Voucher
 
 | Category | Count |
 |----------|-------|
-| Integration Classes | 2 (VoucherCondition, HasVouchers) |
+| Integration Classes | 3 (VoucherCondition, HasVouchers, VoucherWallet) |
+| Trait Classes | 1 (HasVoucherWallet) |
 | Event Classes | 2 (VoucherApplied, VoucherRemoved) |
 | Public Methods Added to Cart | 10 |
-| Configuration Options | 12 |
-| Integration Tests | 20+ |
+| Public Methods in Wallet Trait | 7 |
+| Configuration Options | 15 |
+| Integration Tests | 39+ |
 | Documentation Pages | 3 |
-| Code Examples | 15+ |
-| Total Lines of Integration Code | ~500 |
+| Code Examples | 20+ |
+| Total Lines of Integration Code | ~750 |
 
 ---
 
@@ -398,6 +464,8 @@ The voucher package is now **fully integrated** with the cart package!
 - ✅ Configure behavior per application
 - ✅ Stack multiple vouchers (optional)
 - ✅ Get discount totals easily
+- ✅ Save vouchers to user wallets
+- ✅ Track claimed and redeemed status
 
 **The integration provides:**
 - ✅ Clean architecture with separation of concerns

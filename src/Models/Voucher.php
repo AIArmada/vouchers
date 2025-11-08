@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property string $id
@@ -26,22 +25,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $max_discount Value in cents
  * @property int|null $usage_limit
  * @property int|null $usage_limit_per_user
- * @property int $times_used
  * @property \Illuminate\Support\Carbon|null $starts_at
  * @property \Illuminate\Support\Carbon|null $expires_at
  * @property VoucherStatus $status
- * @property array<mixed>|null $applicable_products
- * @property array<mixed>|null $excluded_products
- * @property array<mixed>|null $applicable_categories
- * @property array<mixed>|null $metadata
+ * @property array<string, mixed>|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
- * @property \Illuminate\Support\Carbon|null $deleted_at
  */
 class Voucher extends Model
 {
     use HasUuids;
-    use SoftDeletes;
 
     protected $fillable = [
         'code',
@@ -54,14 +47,10 @@ class Voucher extends Model
         'max_discount',
         'usage_limit',
         'usage_limit_per_user',
-        'times_used',
         'allows_manual_redemption',
         'starts_at',
         'expires_at',
         'status',
-        'applicable_products',
-        'excluded_products',
-        'applicable_categories',
         'metadata',
         'owner_type',
         'owner_id',
@@ -76,6 +65,14 @@ class Voucher extends Model
     {
         /** @var HasMany<VoucherUsage, Voucher> $relation */
         $relation = $this->hasMany(VoucherUsage::class);
+
+        return $relation;
+    }
+
+    public function walletEntries(): HasMany
+    {
+        /** @var HasMany<VoucherWallet, Voucher> $relation */
+        $relation = $this->hasMany(VoucherWallet::class);
 
         return $relation;
     }
@@ -146,7 +143,7 @@ class Voucher extends Model
             return true;
         }
 
-        return $this->getAttribute('times_used') < $usageLimit;
+        return $this->usages()->count() < $usageLimit;
     }
 
     public function getRemainingUses(): ?int
@@ -157,17 +154,15 @@ class Voucher extends Model
             return null;
         }
 
-        return max(0, $usageLimit - $this->getAttribute('times_used'));
+        return max(0, $usageLimit - $this->usages()->count());
     }
 
     public function incrementUsage(): void
     {
-        $this->increment('times_used');
-
         // Auto-update status if depleted
         $usageLimit = $this->getAttribute('usage_limit');
 
-        if ($usageLimit && $this->getAttribute('times_used') >= $usageLimit) {
+        if ($usageLimit && $this->usages()->count() >= $usageLimit) {
             $this->update(['status' => VoucherStatus::Depleted]);
         }
     }
@@ -182,13 +177,9 @@ class Voucher extends Model
             'max_discount' => 'integer', // Stored as cents
             'usage_limit' => 'integer',
             'usage_limit_per_user' => 'integer',
-            'times_used' => 'integer',
             'allows_manual_redemption' => 'boolean',
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
-            'applicable_products' => 'array',
-            'excluded_products' => 'array',
-            'applicable_categories' => 'array',
             'metadata' => 'array',
         ];
     }

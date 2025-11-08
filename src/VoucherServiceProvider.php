@@ -92,7 +92,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
         });
 
         // Bind facade accessor
-        $this->app->alias(VoucherService::class, 'voucher');
+        $this->app->bind('voucher', VoucherService::class);
     }
 
     public function packageBooted(): void

@@ -9,7 +9,7 @@ Add powerful voucher functionality to your Laravel shopping cart with support fo
 - 🎫 **Multiple Voucher Types** - Percentage, fixed amount, free shipping
 - 🔒 **Usage Limits** - Global limits and per-user restrictions
 - 📅 **Time-Based** - Start and expiry dates for campaigns
-- 🎯 **Targeted Discounts** - Apply to specific products or categories
+- 💼 **Voucher Wallet** - Save vouchers for later use with polymorphic owner support
 - 💰 **Smart Constraints** - Minimum cart values, maximum discounts
 - 🧑‍🤝‍🧑 **Multi-Owner Aware** - Scope vouchers to the current tenant or merchant using a configurable resolver
 - 🧾 **Manual Redemption** - Record offline usage with channels, metadata, and staff attribution
@@ -125,6 +125,44 @@ Enable multi-tenant or multi-merchant scoping by registering a resolver that ret
 ```
 
 When enabled, all lookups automatically constrain vouchers to the resolved owner while optionally including global vouchers. New vouchers created through the service are associated with the current owner for you.
+
+### Voucher Wallet
+
+Allow users (or any model) to save vouchers for later use:
+
+```php
+use AIArmada\Vouchers\Traits\HasVoucherWallet;
+
+class User extends Model
+{
+    use HasVoucherWallet;
+}
+
+// Add voucher to wallet
+$user->addVoucherToWallet('SUMMER2024');
+
+// Check if voucher exists in wallet
+if ($user->hasVoucherInWallet('SUMMER2024')) {
+    // Voucher is saved
+}
+
+// Get available vouchers
+$availableVouchers = $user->getAvailableVouchers();
+
+// Get redeemed vouchers
+$redeemedVouchers = $user->getRedeemedVouchers();
+
+// Get expired vouchers
+$expiredVouchers = $user->getExpiredVouchers();
+
+// Mark as redeemed
+$user->markVoucherAsRedeemed('SUMMER2024');
+
+// Remove from wallet
+$user->removeVoucherFromWallet('SUMMER2024');
+```
+
+The wallet system tracks claimed and redeemed status with timestamps and supports custom metadata for each entry.
 
 ## 📚 Documentation
 
