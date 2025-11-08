@@ -49,7 +49,7 @@ return new class extends Migration
             $table->index('code');
             $table->index('status');
             $table->index(['starts_at', 'expires_at']);
-            $table->index(['owner_type', 'owner_id']); // For polymorphic owner queries
+            // Note: nullableUuidMorphs('owner') already creates index on ['owner_type', 'owner_id']
             $table->index('type'); // For filtering by voucher type
             $table->index('expires_at'); // For expiration checks
         });

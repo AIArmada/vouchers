@@ -10,7 +10,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create(config('vouchers.table_names.voucher_wallets', 'voucher_wallets'), function (Blueprint $table) {
+        Schema::create(config('vouchers.table_names.voucher_wallets', 'voucher_wallets'), function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->uuid('voucher_id');
             $table->uuidMorphs('owner');
@@ -28,7 +28,7 @@ return new class extends Migration
 
             // Indexes for common queries
             $table->index('voucher_id'); // For querying wallet entries by voucher
-            $table->index(['owner_type', 'owner_id']); // For polymorphic owner queries
+            // Note: uuidMorphs('owner') already creates index on ['owner_type', 'owner_id']
             $table->index('is_claimed'); // For filtering claimed status
             $table->index('is_redeemed'); // For filtering redeemed status
             $table->index(['is_redeemed', 'is_claimed']); // For available vouchers queries
