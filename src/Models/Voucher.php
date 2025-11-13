@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property int|null $max_discount Value in cents
  * @property int|null $usage_limit
  * @property int|null $usage_limit_per_user
+ * @property int $applied_count Number of times the voucher has been applied to carts
  * @property \Illuminate\Support\Carbon|null $starts_at
  * @property \Illuminate\Support\Carbon|null $expires_at
  * @property VoucherStatus $status
@@ -47,6 +48,7 @@ class Voucher extends Model
         'max_discount',
         'usage_limit',
         'usage_limit_per_user',
+        'applied_count',
         'allows_manual_redemption',
         'starts_at',
         'expires_at',
@@ -167,6 +169,57 @@ class Voucher extends Model
         }
     }
 
+    /**
+     * Get the conversion rate (redeemed vs applied).
+     * Returns the percentage of applications that resulted in actual usage/redemption.
+     *
+     * @return float|null Conversion rate as percentage (0-100), or null if never applied
+     */
+    public function getConversionRate(): ?float
+    {
+        $appliedCount = $this->getAttribute('applied_count') ?? 0;
+
+        if ($appliedCount === 0) {
+            return null;
+        }
+
+        $usageCount = $this->usages()->count();
+
+        return ($usageCount / $appliedCount) * 100;
+    }
+
+    /**
+     * Get the number of times this voucher was applied but not redeemed.
+     *
+     * @return int Number of abandoned applications
+     */
+    public function getAbandonedCount(): int
+    {
+        $appliedCount = $this->getAttribute('applied_count') ?? 0;
+        $usageCount = $this->usages()->count();
+
+        return max(0, $appliedCount - $usageCount);
+    }
+
+    /**
+     * Get comprehensive statistics for this voucher.
+     *
+     * @return array<string, mixed>
+     */
+    public function getStatistics(): array
+    {
+        $appliedCount = $this->getAttribute('applied_count') ?? 0;
+        $usageCount = $this->usages()->count();
+
+        return [
+            'applied_count' => $appliedCount,
+            'redeemed_count' => $usageCount,
+            'abandoned_count' => $this->getAbandonedCount(),
+            'conversion_rate' => $this->getConversionRate(),
+            'remaining_uses' => $this->getRemainingUses(),
+        ];
+    }
+
     protected function casts(): array
     {
         return [
@@ -177,6 +230,7 @@ class Voucher extends Model
             'max_discount' => 'integer', // Stored as cents
             'usage_limit' => 'integer',
             'usage_limit_per_user' => 'integer',
+            'applied_count' => 'integer',
             'allows_manual_redemption' => 'boolean',
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',

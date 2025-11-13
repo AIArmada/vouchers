@@ -225,8 +225,7 @@ class VoucherService
             throw ManualRedemptionNotAllowedException::forVoucher($voucher->code);
         }
 
-        $channel = config('vouchers.redemption.channels.manual')
-            ?? VoucherUsage::CHANNEL_MANUAL;
+        $channel = config('vouchers.redemption.manual_channel', 'manual');
 
         $this->recordUsage(
             code: $code,

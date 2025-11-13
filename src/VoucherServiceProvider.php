@@ -10,12 +10,15 @@ use AIArmada\Cart\Services\CartConditionResolver;
 use AIArmada\Vouchers\Conditions\VoucherCondition;
 use AIArmada\Vouchers\Contracts\VoucherOwnerResolver;
 use AIArmada\Vouchers\Data\VoucherData;
+use AIArmada\Vouchers\Events\VoucherApplied;
 use AIArmada\Vouchers\Facades\Voucher;
+use AIArmada\Vouchers\Listeners\IncrementVoucherAppliedCount;
 use AIArmada\Vouchers\Services\VoucherService;
 use AIArmada\Vouchers\Services\VoucherValidator;
 use AIArmada\Vouchers\Support\CartManagerWithVouchers;
 use AIArmada\Vouchers\Support\Resolvers\NullOwnerResolver;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
+use Illuminate\Support\Facades\Event;
 use InvalidArgumentException;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -97,6 +100,9 @@ final class VoucherServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        // Register event listener for tracking voucher applications
+        Event::listen(VoucherApplied::class, IncrementVoucherAppliedCount::class);
+
         $this->app->extend('cart', function (CartManager $manager, $app): CartManager {
             if ($manager instanceof CartManagerWithVouchers) {
                 return $manager;
