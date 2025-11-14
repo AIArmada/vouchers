@@ -5,26 +5,13 @@ declare(strict_types=1);
 return [
     /*
     |--------------------------------------------------------------------------
-    | Voucher System Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configure how vouchers behave in your application.
-    |
-    */
-
-    'enabled' => env('VOUCHERS_ENABLED', true),
-
-    /*
-    |--------------------------------------------------------------------------
     | Voucher Code Settings
     |--------------------------------------------------------------------------
     */
 
     'code' => [
-        'case_sensitive' => env('VOUCHERS_CASE_SENSITIVE', false),
+        // Automatically convert voucher codes to uppercase for case-insensitive matching
         'auto_uppercase' => env('VOUCHERS_AUTO_UPPERCASE', true),
-        'min_length' => env('VOUCHERS_MIN_LENGTH', 4),
-        'max_length' => env('VOUCHERS_MAX_LENGTH', 32),
     ],
 
     /*
@@ -34,10 +21,19 @@ return [
     */
 
     'cart' => [
+        // Maximum number of vouchers that can be applied to a cart (0 = disabled, -1 = unlimited)
         'max_vouchers_per_cart' => env('VOUCHERS_MAX_PER_CART', 1),
+
+        // When max vouchers reached, replace the oldest voucher with the new one
         'replace_when_max_reached' => env('VOUCHERS_REPLACE_WHEN_MAX_REACHED', true),
-        'auto_apply_best' => env('VOUCHERS_AUTO_APPLY_BEST', false),
+
+        // Order of voucher condition application (lower = earlier in calculation chain)
+        // Example: Tax (100), Shipping (75), Voucher (50), Fee (25)
+        // Vouchers with order=50 apply after fees but before shipping/tax
+        // This affects how discounts interact with other cart conditions
         'condition_order' => env('VOUCHERS_CONDITION_ORDER', 50),
+
+        // Allow multiple vouchers to stack (apply sequentially)
         'allow_stacking' => env('VOUCHERS_ALLOW_STACKING', false),
     ],
 
@@ -45,35 +41,36 @@ return [
     |--------------------------------------------------------------------------
     | Validation
     |--------------------------------------------------------------------------
+    |
+    | Control which validation checks are performed when applying vouchers.
+    | Note: Date range (starts_at/expires_at) and status checks are always enforced.
+    |
     */
 
     'validation' => [
+        // Check per-user usage limits (usage_limit_per_user)
         'check_user_limit' => env('VOUCHERS_CHECK_USER_LIMIT', true),
+
+        // Check global usage limits (usage_limit)
         'check_global_limit' => env('VOUCHERS_CHECK_GLOBAL_LIMIT', true),
-        'check_date_range' => env('VOUCHERS_CHECK_DATE_RANGE', true),
+
+        // Check minimum cart value requirements (min_cart_value)
         'check_min_cart_value' => env('VOUCHERS_CHECK_MIN_CART_VALUE', true),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Usage Tracking
+    | Application Tracking
     |--------------------------------------------------------------------------
+    |
+    | Track how many times vouchers are applied to carts (not just redeemed).
+    | Useful for campaign monitoring and conversion rate analysis.
+    |
     */
 
     'tracking' => [
-        'enabled' => env('VOUCHERS_TRACKING_ENABLED', true),
-        'store_cart_snapshot' => env('VOUCHERS_STORE_CART_SNAPSHOT', true),
-        'cleanup_after_days' => env('VOUCHERS_CLEANUP_AFTER_DAYS', 90),
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
-    | Events
-    |--------------------------------------------------------------------------
-    */
-
-    'events' => [
-        'dispatch' => env('VOUCHERS_DISPATCH_EVENTS', true),
+        // Track applied_count (incremented when voucher is added to cart)
+        'track_applications' => env('VOUCHERS_TRACK_APPLICATIONS', true),
     ],
 
     /*
@@ -107,39 +104,72 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Voucher Ownership
+    | Voucher Ownership (Multi-Tenancy)
     |--------------------------------------------------------------------------
     |
-    | Configure how vouchers are associated with a specific owner / tenant.
-    | When disabled, all vouchers are treated as global. When enabled, the
-    | resolver should return the current owner model so lookups can be scoped.
+    | Enable multi-tenancy to scope vouchers to specific owners/tenants.
+    |
+    | When DISABLED (false):
+    | - All vouchers are global and visible to everyone
+    | - Single-tenant applications use this setting
+    | - Example: E-commerce store with one business owner
+    |
+    | When ENABLED (true):
+    | - Vouchers belong to specific owners (e.g., Store, Merchant, Vendor)
+    | - Each owner only sees/manages their own vouchers
+    | - Requires a custom VoucherOwnerResolver to identify current owner
+    | - Example: Multi-vendor marketplace where each vendor creates vouchers
+    |
+    | The 'resolver' class determines WHO the current owner is (returns Model)
+    | The 'include_global' setting allows global vouchers alongside owned ones
+    | The 'auto_assign_on_create' auto-assigns vouchers to current owner
     |
     */
 
     'owner' => [
+        // Enable owner-based voucher scoping (multi-tenancy)
         'enabled' => env('VOUCHERS_OWNER_ENABLED', false),
+
+        // Class that resolves the current owner (must implement VoucherOwnerResolver)
         'resolver' => AIArmada\Vouchers\Support\Resolvers\NullOwnerResolver::class,
+
+        // Allow owners to see global vouchers (owner_id = null) alongside their own
         'include_global' => env('VOUCHERS_OWNER_INCLUDE_GLOBAL', true),
+
+        // Automatically assign vouchers to current owner when created
         'auto_assign_on_create' => env('VOUCHERS_OWNER_AUTO_ASSIGN_ON_CREATE', true),
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Redemption Channels
+    | Redemption Settings
     |--------------------------------------------------------------------------
     |
-    | Configure manual redemption policies and channel names that are used
-    | when tracking voucher usage. Manual redemption can be toggled per
-    | voucher by setting the allows_manual_redemption flag.
+    | Manual redemption allows vouchers to be redeemed OUTSIDE the cart flow.
+    | Use cases: In-store purchases, phone orders, admin-initiated redemptions
+    |
+    | Normal flow: User adds voucher to cart → completes checkout → redeemed
+    | Manual flow: Call VoucherService::redeemManually() → redeemed immediately
+    |
+    | The 'manual_requires_flag' setting adds a safety layer:
+    |
+    | When TRUE (recommended):
+    | - Voucher must have allows_manual_redemption=true in database
+    | - Prevents accidental manual redemption of cart-only vouchers
+    | - Example: Gift cards OK for manual, but "first purchase" vouchers are not
+    |
+    | When FALSE:
+    | - ANY voucher can be manually redeemed (less safe)
+    | - Useful if you want all vouchers available for manual redemption
     |
     */
 
     'redemption' => [
+        // Require allows_manual_redemption=true flag on voucher for manual redemption
+        // Set to false to allow manual redemption of any voucher
         'manual_requires_flag' => env('VOUCHERS_MANUAL_REQUIRES_FLAG', true),
-        'channels' => [
-            'automatic' => 'automatic',
-            'manual' => 'manual',
-            'api' => 'api',
-        ],
+
+        // Channel name used for manual redemptions in voucher_usage table
+        'manual_channel' => 'manual',
     ],
 ];

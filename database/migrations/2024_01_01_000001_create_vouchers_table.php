@@ -32,6 +32,7 @@ return new class extends Migration
             // Usage limits
             $table->integer('usage_limit')->nullable();
             $table->integer('usage_limit_per_user')->nullable();
+            $table->unsignedBigInteger('applied_count')->default(0);
             $table->boolean('allows_manual_redemption')->default(false);
 
             // Validity period
