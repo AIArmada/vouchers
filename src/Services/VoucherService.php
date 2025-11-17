@@ -187,6 +187,7 @@ class VoucherService
                 'currency' => $discountAmount->getCurrency()->getCurrency(),
                 'channel' => $channel,
                 'metadata' => $metadata,
+                'target_definition' => $voucher->target_definition,
                 'notes' => $notes,
                 'used_at' => now(),
             ];

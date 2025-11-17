@@ -6,6 +6,9 @@ namespace AIArmada\Vouchers\Conditions;
 
 use AIArmada\Cart\Cart;
 use AIArmada\Cart\Conditions\CartCondition;
+use AIArmada\Cart\Conditions\ConditionTarget;
+use AIArmada\Cart\Conditions\Enums\ConditionPhase;
+use AIArmada\Cart\Conditions\Target;
 use AIArmada\Cart\Contracts\CartConditionConvertible;
 use AIArmada\Cart\Models\CartItem;
 use AIArmada\Vouchers\Data\VoucherData;
@@ -30,7 +33,7 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
 
     private string $type;
 
-    private string $target;
+    private ConditionTarget $target;
 
     private string $value;
 
@@ -53,13 +56,13 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
      * @param  int  $order  The order in which this condition should be applied
      * @param  bool  $dynamic  Whether to add validation rules (true for dynamic, false for static)
      */
-    public function __construct(VoucherData $voucher, int $order = 0, bool $dynamic = true)
+    public function __construct(VoucherData $voucher, int $order = 0, bool $dynamic = true, ?ConditionTarget $targetDefinition = null)
     {
         $this->voucher = $voucher;
 
         // Convert voucher to cart condition format
         $value = $this->formatVoucherValue($voucher);
-        $target = $this->determineTarget($voucher);
+        $target = $targetDefinition ?? $this->determineTarget($voucher);
 
         $this->name = "voucher_{$voucher->code}";
         $this->type = 'voucher';
@@ -95,7 +98,8 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
         $instance = new self(
             voucher: $data,
             order: $condition->getOrder(),
-            dynamic: $condition->isDynamic()
+            dynamic: $condition->isDynamic(),
+            targetDefinition: $condition->getTargetDefinition()
         );
 
         $instance->cartCondition = $condition;
@@ -292,9 +296,9 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
     }
 
     /**
-     * Get the condition target.
+     * Get the condition target definition.
      */
-    public function getTarget(): string
+    public function getTargetDefinition(): ConditionTarget
     {
         return $this->target;
     }
@@ -343,7 +347,7 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
         $array = [
             'name' => $this->name,
             'type' => $this->type,
-            'target' => $this->target,
+            'target_definition' => $this->target->toArray(),
             'value' => $this->value,
             'attributes' => $this->attributes,
             'order' => $this->order,
@@ -480,24 +484,48 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
     private function formatVoucherValue(VoucherData $voucher): string
     {
         return match ($voucher->type) {
-            VoucherType::Percentage => "-{$voucher->value}%",
+            VoucherType::Percentage => '-'.($voucher->value / 100).'%', // Convert basis points to percentage (1000 = 10.00%)
             VoucherType::Fixed => "-{$voucher->value}", // Value is already in cents
             VoucherType::FreeShipping => '+0', // Free shipping is handled separately
         };
     }
 
     /**
-     * Determine the condition target based on voucher type.
-     *
-     * @return string The target ('subtotal' or 'total')
+     * Determine the condition target definition based on voucher metadata and type.
      */
-    private function determineTarget(VoucherData $voucher): string
+    private function determineTarget(VoucherData $voucher): ConditionTarget
     {
-        // Most vouchers apply to subtotal
-        // Free shipping vouchers would apply to total (after shipping is added)
-        return match ($voucher->type) {
-            VoucherType::FreeShipping => 'total',
-            default => 'subtotal',
-        };
+        $explicitTarget = $voucher->targetDefinition;
+        if (is_array($explicitTarget)) {
+            return ConditionTarget::from($explicitTarget)
+                ->with($this->targetMeta($voucher));
+        }
+
+        if ($voucher->type === VoucherType::FreeShipping) {
+            return Target::cart()
+                ->phase(ConditionPhase::GRAND_TOTAL)
+                ->applyAggregate()
+                ->withMeta($this->targetMeta($voucher))
+                ->build();
+        }
+
+        return Target::cart()
+            ->phase(ConditionPhase::CART_SUBTOTAL)
+            ->applyAggregate()
+            ->withMeta($this->targetMeta($voucher))
+            ->build();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function targetMeta(VoucherData $voucher): array
+    {
+        return [
+            'source' => 'voucher',
+            'voucher_id' => $voucher->id,
+            'voucher_code' => $voucher->code,
+            'voucher_type' => $voucher->type->value,
+        ];
     }
 }

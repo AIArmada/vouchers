@@ -52,7 +52,7 @@ Or run the interactive setup:
 php artisan commerce:configure-database
 ```
 
-When using PostgreSQL + `jsonb`, GIN indexes are created automatically on voucher JSON fields: `applicable_products`, `excluded_products`, `applicable_categories`, and `metadata`.
+When using PostgreSQL + `jsonb`, GIN indexes are created automatically on voucher JSON fields: `metadata`.
 
 ## 🚀 Quick Start
 

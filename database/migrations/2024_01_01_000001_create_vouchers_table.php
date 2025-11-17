@@ -42,6 +42,7 @@ return new class extends Migration
 
             // Metadata
             $jsonType = (string) commerce_json_column_type('vouchers', 'json');
+            $table->{$jsonType}('target_definition')->nullable();
             $table->{$jsonType}('metadata')->nullable();
 
             $table->timestamps();
@@ -57,11 +58,14 @@ return new class extends Migration
 
         // Optional: create GIN indexes when using jsonb on PostgreSQL
         $tableName = config('vouchers.table_names.vouchers', 'vouchers');
+        $jsonColumnType = commerce_json_column_type('vouchers', 'json');
+
         if (
-            commerce_json_column_type('vouchers', 'json') === 'jsonb'
+            $jsonColumnType === 'jsonb'
             && Schema::getConnection()->getDriverName() === 'pgsql'
         ) {
             DB::statement("CREATE INDEX IF NOT EXISTS vouchers_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
+            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
         }
     }
 

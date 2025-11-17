@@ -29,6 +29,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property \Illuminate\Support\Carbon|null $starts_at
  * @property \Illuminate\Support\Carbon|null $expires_at
  * @property VoucherStatus $status
+ * @property array<string, mixed>|null $target_definition
  * @property array<string, mixed>|null $metadata
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
@@ -56,6 +57,7 @@ class Voucher extends Model
         'metadata',
         'owner_type',
         'owner_id',
+        'target_definition',
     ];
 
     public function getTable(): string
@@ -235,6 +237,7 @@ class Voucher extends Model
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
             'metadata' => 'array',
+            'target_definition' => 'array',
         ];
     }
 }

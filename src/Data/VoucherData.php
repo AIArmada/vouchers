@@ -30,6 +30,8 @@ readonly class VoucherData
         public ?DateTimeInterface $expiresAt,
         public VoucherStatus $status,
         /** @var ?array<string, mixed> */
+        public ?array $targetDefinition,
+        /** @var ?array<string, mixed> */
         public ?array $metadata,
     ) {}
 
@@ -65,6 +67,7 @@ readonly class VoucherData
             startsAt: $voucher->starts_at,
             expiresAt: $voucher->expires_at,
             status: $status,
+            targetDefinition: $voucher->target_definition,
             metadata: $voucher->metadata,
         );
     }
@@ -100,6 +103,9 @@ readonly class VoucherData
             startsAt: $startsAt,
             expiresAt: $expiresAt,
             status: VoucherStatus::from($data['status'] ?? VoucherStatus::Active->value),
+            targetDefinition: isset($data['target_definition']) && is_array($data['target_definition'])
+                ? $data['target_definition']
+                : null,
             metadata: isset($data['metadata']) && is_array($data['metadata']) ? $data['metadata'] : null,
         );
     }
@@ -127,6 +133,7 @@ readonly class VoucherData
             'starts_at' => $this->startsAt?->format('Y-m-d H:i:s'),
             'expires_at' => $this->expiresAt?->format('Y-m-d H:i:s'),
             'status' => $this->status->value,
+            'target_definition' => $this->targetDefinition,
             'metadata' => $this->metadata,
         ];
     }

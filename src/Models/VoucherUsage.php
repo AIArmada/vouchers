@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property string $currency
  * @property int $discount_amount
  * @property string $channel
+ * @property array<string, mixed>|null $target_definition
  * @property string $redeemed_by_type
  * @property string $cart_identifier
  * @property string $user_identifier
@@ -43,6 +44,7 @@ class VoucherUsage extends Model
         'redeemed_by_type',
         'redeemed_by_id',
         'used_at',
+        'target_definition',
     ];
 
     public function getTable(): string
@@ -70,6 +72,7 @@ class VoucherUsage extends Model
         return [
             'discount_amount' => 'integer', // Stored as cents
             'metadata' => 'array',
+            'target_definition' => 'array',
             'used_at' => 'datetime',
         ];
     }

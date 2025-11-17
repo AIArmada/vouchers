@@ -53,7 +53,7 @@ VoucherCondition extends CartCondition
 **Responsibilities:**
 - Converts `VoucherData` to cart condition format
 - Formats voucher values (percentage, fixed, free shipping)
-- Determines condition target (subtotal or total)
+- Builds structured `ConditionTarget` definitions (scope, phase, DSL) with optional metadata overrides
 - Validates voucher dynamically on each cart calculation
 - Applies maximum discount caps
 - Provides voucher-specific metadata
