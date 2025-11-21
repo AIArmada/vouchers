@@ -4,338 +4,267 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Traits;
 
-use AIArmada\Cart\Cart;
-use AIArmada\Cart\Conditions\CartCondition;
-use AIArmada\Vouchers\Conditions\VoucherCondition;
-use AIArmada\Vouchers\Events\VoucherApplied;
-use AIArmada\Vouchers\Events\VoucherRemoved;
-use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
-use AIArmada\Vouchers\Facades\Voucher;
-use AIArmada\Vouchers\Support\CartWithVouchers;
-use AIArmada\Vouchers\Support\VoucherRulesFactory;
-use Illuminate\Support\Facades\Event;
-use Throwable;
+use AIArmada\Vouchers\Models\Voucher;
+use AIArmada\Vouchers\Models\VoucherTransaction;
+use AIArmada\Vouchers\Models\VoucherUsage;
+use AIArmada\Vouchers\Models\VoucherWallet;
+use Exception;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Support\Collection;
 
-/**
- * HasVouchers trait adds voucher management capabilities to the Cart.
- *
- * This trait provides convenient methods for applying, removing, and checking vouchers
- * while integrating seamlessly with the cart's condition system.
- */
 trait HasVouchers
 {
     /**
-     * Apply a voucher to the cart by code.
-     *
-     * This method validates the voucher, creates a VoucherCondition,
-     * and adds it to the cart's conditions.
-     *
-     * @param  string  $code  The voucher code to apply
-     * @param  int  $order  The order in which the voucher condition should be applied (default: 100)
-     *
-     * @throws InvalidVoucherException If the voucher is invalid or cannot be applied
+     * Get the vouchers assigned to this model (Credit System).
      */
-    public function applyVoucher(string $code, int $order = 100): self
+    public function assignedVouchers(): BelongsToMany
     {
-        $cart = $this->getUnderlyingCart();
-
-        $validationResult = Voucher::validate($code, $cart);
-
-        if (! $validationResult->isValid) {
-            throw new InvalidVoucherException(
-                "Voucher '{$code}' cannot be applied: {$validationResult->reason}"
-            );
-        }
-
-        if ($this->hasVoucher($code)) {
-            throw new InvalidVoucherException(
-                "Voucher '{$code}' is already applied to this cart"
-            );
-        }
-
-        $maxVouchers = config('vouchers.cart.max_vouchers_per_cart', 1);
-        $currentVoucherCount = count($this->getAppliedVouchers());
-
-        if ($currentVoucherCount >= $maxVouchers && $maxVouchers > 0) {
-            $replaceWhenMaxReached = config('vouchers.cart.replace_when_max_reached', false);
-
-            if ($replaceWhenMaxReached) {
-                // Clear existing vouchers to make room for the new one
-                $this->clearVouchers();
-            } else {
-                throw new InvalidVoucherException(
-                    "Cart already has the maximum number of vouchers ({$maxVouchers})"
-                );
-            }
-        }
-
-        $voucherData = Voucher::find($code);
-
-        if ($voucherData === null) {
-            throw new InvalidVoucherException(
-                "Voucher '{$code}' not found"
-            );
-        }
-
-        $this->ensureVoucherRulesFactory($cart);
-
-        $voucherCondition = new VoucherCondition($voucherData, $order);
-
-        try {
-            $cart->registerDynamicCondition(
-                $voucherCondition->toCartCondition(),
-                null,
-                $voucherCondition->getRuleFactoryKey(),
-                $voucherCondition->getRuleFactoryContext()
-            );
-        } catch (Throwable $exception) {
-            throw new InvalidVoucherException(
-                "Voucher '{$code}' cannot be applied: {$exception->getMessage()}",
-                previous: $exception
-            );
-        }
-
-        if ($this instanceof CartWithVouchers) {
-            Event::dispatch(new VoucherApplied($cart, $voucherData));
-        }
-
-        return $this;
+        return $this->morphToMany(
+            Voucher::class,
+            'assignee',
+            config('vouchers.table_names.voucher_assignments', 'voucher_assignments')
+        )
+            ->withPivot('assigned_at', 'expires_at')
+            ->withTimestamps();
     }
 
     /**
-     * Remove a voucher from the cart by code.
+     * Get the voucher transaction entries for this model (Credit System).
+     */
+    public function voucherTransactions(): MorphMany
+    {
+        return $this->morphMany(VoucherTransaction::class, 'walletable');
+    }
+
+    /**
+     * Get all vouchers in the wallet (Coupon System).
+     */
+    public function voucherWallets(): MorphMany
+    {
+        return $this->morphMany(VoucherWallet::class, 'owner');
+    }
+
+    /**
+     * Get the voucher usages redeemed by this model.
+     */
+    public function voucherUsages(): MorphMany
+    {
+        return $this->morphMany(VoucherUsage::class, 'redeemedBy');
+    }
+
+    /**
+     * Get the wallet balance for a specific voucher (Credit System).
+     */
+    public function voucherBalance(Voucher $voucher): int
+    {
+        // We can get the balance from the last transaction or sum amounts.
+        // Summing amounts is safer if we don't trust the running balance.
+        return (int) $this->voucherTransactions()
+            ->where('voucher_id', $voucher->getKey())
+            ->sum('amount');
+    }
+
+    /**
+     * Check if the model can redeem a specific voucher.
+     */
+    public function canRedeemVoucher(Voucher $voucher, ?int $amount = null): bool
+    {
+        // Check if assigned
+        $isAssigned = $this->assignedVouchers()
+            ->where('vouchers.id', $voucher->getKey())
+            ->exists();
+
+        if (! $isAssigned) {
+            return false;
+        }
+
+        // Check if voucher is valid (active, dates, etc.)
+        if (! $voucher->canBeRedeemed()) {
+            return false;
+        }
+
+        // If amount is specified, check balance
+        if ($amount !== null) {
+            return $this->voucherBalance($voucher) >= $amount;
+        }
+
+        return true;
+    }
+
+    /**
+     * Assign a voucher and optionally grant initial credit.
+     */
+    public function assignAndCreditVoucher(Voucher $voucher, int $creditAmount = 0, string $description = 'Assignment Gift'): VoucherTransaction
+    {
+        // Assign if not already assigned
+        if (! $this->assignedVouchers()->where('vouchers.id', $voucher->getKey())->exists()) {
+            $this->assignedVouchers()->attach($voucher->getKey());
+        }
+
+        // Grant credit
+        return $this->grantVoucherCredit($voucher, $creditAmount, $description);
+    }
+
+    /**
+     * Grant credit to the voucher wallet (via transaction).
+     */
+    public function grantVoucherCredit(Voucher $voucher, int $creditAmount, string $description, ?VoucherWallet $voucherWallet = null): VoucherTransaction
+    {
+        $balance = $this->voucherBalance($voucher) + $creditAmount;
+
+        return $this->voucherTransactions()->create([
+            'voucher_id' => $voucher->getKey(),
+            'voucher_wallet_id' => $voucherWallet?->getKey(),
+            'amount' => $creditAmount,
+            'balance' => $balance,
+            'type' => $creditAmount >= 0 ? 'credit' : 'debit',
+            'currency' => $voucher->currency,
+            'description' => $description,
+        ]);
+    }
+
+    /**
+     * Redeem a voucher, deducting from wallet and recording usage.
+     */
+    public function redeemVoucher(Voucher $voucher, int $amount): VoucherUsage
+    {
+        if (! $this->canRedeemVoucher($voucher, $amount)) {
+            throw new Exception('Cannot redeem voucher: Insufficient balance or invalid voucher.');
+        }
+
+        $walletEntry = $this->resolveVoucherWalletEntry($voucher);
+
+        // 1. Debit wallet
+        $this->grantVoucherCredit($voucher, -$amount, 'Redemption', $walletEntry);
+
+        if ($walletEntry) {
+            $walletEntry->markAsRedeemed();
+        }
+
+        // 2. Record usage
+        return VoucherUsage::create([
+            'voucher_id' => $voucher->getKey(),
+            'discount_amount' => $amount,
+            'currency' => $voucher->currency,
+            'channel' => 'web', // Default channel, maybe make configurable
+            'redeemed_by_type' => $this->getMorphClass(),
+            'redeemed_by_id' => $this->getKey(),
+            'notes' => 'Redemption via wallet',
+            'used_at' => now(),
+        ]);
+    }
+
+    /**
+     * Add a voucher to the wallet (claimed automatically) - Coupon System.
+     */
+    public function addVoucherToWallet(string $voucherCode): VoucherWallet
+    {
+        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+
+        return $this->voucherWallets()->create([
+            'voucher_id' => $voucher->id,
+            'is_claimed' => true,
+            'claimed_at' => now(),
+        ]);
+    }
+
+    /**
+     * Remove a voucher from the wallet - Coupon System.
+     */
+    public function removeVoucherFromWallet(string $voucherCode): bool
+    {
+        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+
+        return $this->voucherWallets()
+            ->where('voucher_id', $voucher->id)
+            ->where('is_redeemed', false)
+            ->delete() > 0;
+    }
+
+    /**
+     * Check if voucher exists in wallet - Coupon System.
+     */
+    public function hasVoucherInWallet(string $voucherCode): bool
+    {
+        $voucher = Voucher::where('code', $voucherCode)->first();
+
+        if (! $voucher) {
+            return false;
+        }
+
+        return $this->voucherWallets()
+            ->where('voucher_id', $voucher->id)
+            ->exists();
+    }
+
+    /**
+     * Get all available (usable) vouchers from wallet - Coupon System.
      *
-     * @param  string  $code  The voucher code to remove
+     * @return Collection<int, VoucherWallet>
      */
-    public function removeVoucher(string $code): self
+    public function getAvailableVouchers(): Collection
     {
-        $voucherCondition = $this->getVoucherCondition($code);
-
-        if ($voucherCondition === null) {
-            return $this;
-        }
-
-        $cart = $this->getUnderlyingCart();
-        $conditionName = $voucherCondition->getName();
-
-        if ($cart->getDynamicConditions()->has($conditionName)) {
-            $cart->removeDynamicCondition($conditionName);
-        } else {
-            $cart->removeCondition($conditionName);
-        }
-
-        if ($this instanceof CartWithVouchers) {
-            Event::dispatch(new VoucherRemoved($cart, $voucherCondition->getVoucher()));
-        }
-
-        return $this;
+        return $this->voucherWallets()
+            ->with('voucher')
+            ->where('is_claimed', true)
+            ->where('is_redeemed', false)
+            ->get()
+            ->filter(fn (VoucherWallet $wallet) => $wallet->canBeUsed());
     }
 
     /**
-     * Remove all vouchers from the cart.
-     */
-    public function clearVouchers(): self
-    {
-        foreach ($this->getAppliedVouchers() as $voucher) {
-            $this->removeVoucher($voucher->getVoucherCode());
-        }
-
-        return $this;
-    }
-
-    /**
-     * Check if the cart has a specific voucher applied, or any voucher if code is null.
+     * Get all redeemed vouchers from wallet - Coupon System.
      *
-     * @param  string|null  $code  Optional voucher code to check for. If null, checks for any voucher.
+     * @return Collection<int, VoucherWallet>
      */
-    public function hasVoucher(?string $code = null): bool
+    public function getRedeemedVouchers(): Collection
     {
-        if ($code === null) {
-            return count($this->getAppliedVouchers()) > 0;
-        }
-
-        $normalized = $this->normalizeVoucherCode($code);
-
-        foreach ($this->getAppliedVouchers() as $voucher) {
-            if ($this->normalizeVoucherCode($voucher->getVoucherCode()) === $normalized) {
-                return true;
-            }
-        }
-
-        return false;
+        return $this->voucherWallets()
+            ->with('voucher')
+            ->where('is_redeemed', true)
+            ->orderByDesc('redeemed_at')
+            ->get();
     }
 
     /**
-     * Get a specific voucher condition by code.
+     * Get expired vouchers from wallet - Coupon System.
      *
-     * @param  string  $code  The voucher code
+     * @return Collection<int, VoucherWallet>
      */
-    public function getVoucherCondition(string $code): ?VoucherCondition
+    public function getExpiredVouchers(): Collection
     {
-        $normalized = $this->normalizeVoucherCode($code);
-        $conditions = $this->collectVoucherConditions();
-
-        return $conditions[$normalized] ?? null;
+        return $this->voucherWallets()
+            ->with('voucher')
+            ->where('is_claimed', true)
+            ->where('is_redeemed', false)
+            ->get()
+            ->filter(fn (VoucherWallet $wallet) => $wallet->isExpired());
     }
 
     /**
-     * Get all applied voucher conditions.
-     *
-     * @return array<VoucherCondition>
+     * Mark a wallet voucher as redeemed - Coupon System.
      */
-    public function getAppliedVouchers(): array
+    public function markVoucherAsRedeemed(string $voucherCode): void
     {
-        return array_values($this->collectVoucherConditions());
+        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+
+        $walletEntry = $this->voucherWallets()
+            ->where('voucher_id', $voucher->id)
+            ->where('is_redeemed', false)
+            ->first();
+
+        if ($walletEntry) {
+            $walletEntry->markAsRedeemed();
+        }
     }
 
-    /**
-     * Get the codes of all applied vouchers.
-     *
-     * @return array<string>
-     */
-    public function getAppliedVoucherCodes(): array
+    protected function resolveVoucherWalletEntry(Voucher $voucher, bool $onlyAvailable = true): ?VoucherWallet
     {
-        return array_map(
-            fn (VoucherCondition $voucher) => $voucher->getVoucherCode(),
-            $this->getAppliedVouchers()
-        );
-    }
-
-    /**
-     * Calculate the total discount from all applied vouchers.
-     *
-     * @return float The total voucher discount amount
-     */
-    public function getVoucherDiscount(): float
-    {
-        $discount = 0.0;
-        $cart = $this->getUnderlyingCart();
-        $subtotalMoney = $cart->subtotal();
-        $baseValue = (float) $subtotalMoney->getAmount();
-
-        foreach ($this->getAppliedVouchers() as $voucher) {
-            $discountAmount = abs($voucher->getCalculatedValue($baseValue));
-            $discount += $discountAmount;
-
-            // Update subtotal for next voucher calculation if stacking
-            if (config('vouchers.cart.allow_stacking', false)) {
-                $baseValue -= $discountAmount;
-            }
-        }
-
-        return $discount;
-    }
-
-    /**
-     * Check if the cart can accept more vouchers.
-     */
-    public function canAddVoucher(): bool
-    {
-        $maxVouchers = config('vouchers.cart.max_vouchers_per_cart', 1);
-
-        if ($maxVouchers === 0) {
-            return false; // Vouchers disabled
-        }
-
-        $currentVoucherCount = count($this->getAppliedVouchers());
-
-        return $currentVoucherCount < $maxVouchers || $maxVouchers === -1;
-    }
-
-    /**
-     * Validate all currently applied vouchers and remove invalid ones.
-     *
-     * This is useful to call after cart modifications to ensure all vouchers
-     * are still valid (e.g., minimum cart value still met).
-     *
-     * @return array<string> Array of voucher codes that were removed
-     */
-    public function validateAppliedVouchers(): array
-    {
-        $removedVouchers = [];
-
-        foreach ($this->getAppliedVouchers() as $voucherCondition) {
-            $code = $voucherCondition->getVoucherCode();
-            $validationResult = Voucher::validate($code, $this->getUnderlyingCart());
-
-            if (! $validationResult->isValid) {
-                $this->removeVoucher($code);
-                $removedVouchers[] = $code;
-            }
-        }
-
-        return $removedVouchers;
-    }
-
-    private function getUnderlyingCart(): Cart
-    {
-        if ($this instanceof CartWithVouchers) {
-            return $this->getCart();
-        }
-
-        return $this;
-    }
-
-    private function ensureVoucherRulesFactory(Cart $cart): void
-    {
-        $currentFactory = $cart->getRulesFactory();
-
-        if ($currentFactory instanceof VoucherRulesFactory) {
-            return;
-        }
-
-        if ($currentFactory === null) {
-            $cart->withRulesFactory(app(VoucherRulesFactory::class));
-
-            return;
-        }
-
-        $cart->withRulesFactory(new VoucherRulesFactory($currentFactory));
-    }
-
-    private function normalizeVoucherCode(string $code): string
-    {
-        $normalized = mb_trim($code);
-
-        if (config('vouchers.code.auto_uppercase', true)) {
-            $normalized = mb_strtoupper($normalized);
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * @return array<string, VoucherCondition>
-     */
-    private function collectVoucherConditions(): array
-    {
-        $cart = $this->getUnderlyingCart();
-
-        $collections = [
-            $cart->getDynamicConditions(),
-            $cart->getConditions(),
-        ];
-
-        $conditions = [];
-
-        foreach ($collections as $collection) {
-            foreach ($collection as $condition) {
-                if ($condition instanceof VoucherCondition) {
-                    $voucherCondition = $condition;
-                } elseif ($condition instanceof CartCondition && $condition->getType() === 'voucher') {
-                    $voucherCondition = VoucherCondition::fromCartCondition($condition);
-
-                    if ($voucherCondition === null) {
-                        continue;
-                    }
-                } else {
-                    continue;
-                }
-
-                $conditions[$this->normalizeVoucherCode($voucherCondition->getVoucherCode())] = $voucherCondition;
-            }
-        }
-
-        return $conditions;
+        return $this->voucherWallets()
+            ->where('voucher_id', $voucher->getKey())
+            ->when($onlyAvailable, fn ($query) => $query->where('is_redeemed', false))
+            ->orderBy('claimed_at')
+            ->first();
     }
 }

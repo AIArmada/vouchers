@@ -6,7 +6,12 @@ namespace AIArmada\Vouchers\Support;
 
 use AIArmada\Cart\Cart;
 use AIArmada\Cart\CartManager;
+use Closure;
 use ReflectionClass;
+use ReflectionException;
+use ReflectionProperty;
+use RuntimeException;
+use Throwable;
 
 final class CartManagerWithVouchers extends CartManager
 {
@@ -34,9 +39,27 @@ final class CartManagerWithVouchers extends CartManager
         /** @var self $instance */
         $instance = $proxyReflection->newInstanceWithoutConstructor();
 
-        foreach ($reflection->getProperties() as $property) {
-            $property->setAccessible(true);
-            $property->setValue($instance, $property->getValue($manager));
+        $currentCartProperty = self::resolveProperty($reflection, 'currentCart');
+
+        if ($currentCartProperty === null) {
+            throw new RuntimeException('Unable to locate CartManager::$currentCart property.');
+        }
+
+        self::ensurePropertyInitialized($manager, $currentCartProperty);
+
+        foreach (self::walkClassHierarchy($reflection) as $class) {
+            foreach ($class->getProperties() as $property) {
+                if ($property->isStatic() || ! $property->isInitialized($manager)) {
+                    continue;
+                }
+
+                $value = self::readPropertyValue($manager, $property);
+                self::writePropertyValue($instance, $property, $value);
+            }
+        }
+
+        if (! $currentCartProperty->isInitialized($instance)) {
+            throw new RuntimeException('Failed to initialize CartManager proxy current cart instance.');
         }
 
         $instance->ensureVoucherRulesFactory($instance->getCurrentCart());
@@ -54,6 +77,67 @@ final class CartManagerWithVouchers extends CartManager
         $cart = parent::getCartInstance($name, $identifier);
 
         return $this->ensureVoucherRulesFactory($cart);
+    }
+
+    private static function resolveProperty(ReflectionClass $class, string $name): ?ReflectionProperty
+    {
+        while ($class !== false) {
+            try {
+                return $class->getProperty($name);
+            } catch (ReflectionException $e) {
+                $class = $class->getParentClass();
+            }
+        }
+
+        return null;
+    }
+
+    private static function ensurePropertyInitialized(object $object, ReflectionProperty $property): void
+    {
+        if ($property->isInitialized($object)) {
+            return;
+        }
+
+        try {
+            if ($property->getName() === 'currentCart' && method_exists($object, 'getCurrentCart')) {
+                $object->getCurrentCart();
+            }
+        } catch (Throwable $e) {
+            throw new RuntimeException('Unable to initialize CartManager current cart.', 0, $e);
+        }
+
+        if (! $property->isInitialized($object)) {
+            throw new RuntimeException('CartManager current cart remains uninitialized.');
+        }
+    }
+
+    /**
+     * @return iterable<ReflectionClass>
+     */
+    private static function walkClassHierarchy(ReflectionClass $class): iterable
+    {
+        while ($class !== false) {
+            yield $class;
+            $class = $class->getParentClass();
+        }
+    }
+
+    private static function readPropertyValue(object $object, ReflectionProperty $property): mixed
+    {
+        $reader = Closure::bind(static function (object $instance, string $name) {
+            return $instance->{$name};
+        }, null, $property->getDeclaringClass()->getName());
+
+        return $reader($object, $property->getName());
+    }
+
+    private static function writePropertyValue(object $object, ReflectionProperty $property, mixed $value): void
+    {
+        $writer = Closure::bind(static function (object $instance, string $name, mixed $val): void {
+            $instance->{$name} = $val;
+        }, null, $property->getDeclaringClass()->getName());
+
+        $writer($object, $property->getName(), $value);
     }
 
     private function ensureVoucherRulesFactory(Cart $cart): Cart

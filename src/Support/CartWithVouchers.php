@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Support;
 
 use AIArmada\Cart\Cart;
-use AIArmada\Vouchers\Traits\HasVouchers;
+use AIArmada\Vouchers\Traits\InteractsWithVouchers;
 
 /**
  * CartWithVouchers provides voucher functionality by wrapping the base Cart class.
@@ -21,7 +21,7 @@ use AIArmada\Vouchers\Traits\HasVouchers;
  */
 class CartWithVouchers
 {
-    use HasVouchers;
+    use InteractsWithVouchers;
 
     private Cart $cart;
 

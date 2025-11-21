@@ -6,11 +6,13 @@ namespace AIArmada\Vouchers\Services;
 
 use AIArmada\Vouchers\Contracts\VoucherOwnerResolver;
 use AIArmada\Vouchers\Data\VoucherValidationResult;
+use AIArmada\Vouchers\Enums\VoucherStatus;
 use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 class VoucherValidator
@@ -21,6 +23,8 @@ class VoucherValidator
 
     public function validate(string $code, mixed $cart): VoucherValidationResult
     {
+        Log::info('🔍 VoucherValidator::validate() called', ['code' => $code]);
+
         $code = $this->normalizeCode($code);
 
         // Find voucher
@@ -32,12 +36,21 @@ class VoucherValidator
             return VoucherValidationResult::invalid('Voucher not found.');
         }
 
-        // Check status
-        if (! $voucher->isActive()) {
-            return VoucherValidationResult::invalid('Voucher is not active.');
-        }
+        // Debug logging
+        Log::debug('Voucher validation check', [
+            'code' => $code,
+            'voucher_id' => $voucher->id,
+            'status' => $voucher->status,
+            'hasStarted' => $voucher->hasStarted(),
+            'isExpired' => $voucher->isExpired(),
+            'isActive' => $voucher->isActive(),
+            'starts_at' => $voucher->starts_at,
+            'expires_at' => $voucher->expires_at,
+            'available_from' => $voucher->available_from,
+            'available_until' => $voucher->available_until,
+        ]);
 
-        // Check start date
+        // Check start date (before status check, as time-based validations are more specific)
         if (! $voucher->hasStarted()) {
             return VoucherValidationResult::invalid(
                 'Voucher is not yet available.',
@@ -45,12 +58,25 @@ class VoucherValidator
             );
         }
 
-        // Check expiry
+        // Check expiry (before status check, as time-based validations are more specific)
         if ($voucher->isExpired()) {
             return VoucherValidationResult::invalid(
                 'Voucher has expired.',
                 ['expires_at' => $voucher->expires_at]
             );
+        }
+
+        // Check status (after time-based checks)
+        if (! $voucher->isActive()) {
+            if ($voucher->status === VoucherStatus::Paused) {
+                return VoucherValidationResult::invalid('Voucher is paused.');
+            }
+
+            if ($voucher->status === VoucherStatus::Depleted) {
+                return VoucherValidationResult::invalid('Voucher usage limit has been reached.');
+            }
+
+            return VoucherValidationResult::invalid('Voucher is not active.');
         }
 
         // Check global usage limit

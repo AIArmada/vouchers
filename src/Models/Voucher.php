@@ -8,6 +8,7 @@ use AIArmada\Vouchers\Enums\VoucherStatus;
 use AIArmada\Vouchers\Enums\VoucherType;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,7 +37,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  */
 class Voucher extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'code',
@@ -147,7 +148,7 @@ class Voucher extends Model
             return true;
         }
 
-        return $this->usages()->count() < $usageLimit;
+        return $this->times_used < $usageLimit;
     }
 
     public function getRemainingUses(): ?int
@@ -158,7 +159,7 @@ class Voucher extends Model
             return null;
         }
 
-        return max(0, $usageLimit - $this->usages()->count());
+        return max(0, $usageLimit - $this->times_used);
     }
 
     public function incrementUsage(): void
@@ -185,7 +186,7 @@ class Voucher extends Model
             return null;
         }
 
-        $usageCount = $this->usages()->count();
+        $usageCount = $this->times_used;
 
         return ($usageCount / $appliedCount) * 100;
     }
@@ -198,7 +199,7 @@ class Voucher extends Model
     public function getAbandonedCount(): int
     {
         $appliedCount = $this->getAttribute('applied_count') ?? 0;
-        $usageCount = $this->usages()->count();
+        $usageCount = $this->times_used;
 
         return max(0, $appliedCount - $usageCount);
     }
@@ -211,7 +212,7 @@ class Voucher extends Model
     public function getStatistics(): array
     {
         $appliedCount = $this->getAttribute('applied_count') ?? 0;
-        $usageCount = $this->usages()->count();
+        $usageCount = $this->times_used;
 
         return [
             'applied_count' => $appliedCount,
@@ -220,6 +221,55 @@ class Voucher extends Model
             'conversion_rate' => $this->getConversionRate(),
             'remaining_uses' => $this->getRemainingUses(),
         ];
+    }
+
+    public function getTimesUsedAttribute(): int
+    {
+        return (int) ($this->getAttribute('usages_count') ?? $this->usages()->count());
+    }
+
+    public function canBeRedeemed(): bool
+    {
+        return $this->isActive()
+            && $this->hasStarted()
+            && ! $this->isExpired()
+            && $this->hasUsageLimitRemaining();
+    }
+
+    public function getUsageProgressAttribute(): ?float
+    {
+        $usageLimit = $this->getAttribute('usage_limit');
+
+        if (! $usageLimit) {
+            return null;
+        }
+
+        $timesUsed = $this->getTimesUsedAttribute();
+
+        return min(100, ($timesUsed / $usageLimit) * 100);
+    }
+
+    public function getOwnerDisplayNameAttribute(): ?string
+    {
+        $owner = $this->owner;
+
+        if (! $owner) {
+            return null;
+        }
+
+        if (method_exists($owner, 'getAttribute')) {
+            return $owner->getAttribute('name')
+                ?? $owner->getAttribute('display_name')
+                ?? $owner->getAttribute('email')
+                ?? class_basename($owner).':'.$owner->getKey();
+        }
+
+        return class_basename($owner).':'.$owner->getKey();
+    }
+
+    public function getRemainingUsesAttribute(): ?int
+    {
+        return $this->getRemainingUses();
     }
 
     protected function casts(): array

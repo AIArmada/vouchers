@@ -67,6 +67,31 @@ class VoucherUsage extends Model
         return $this->getAttribute('channel') === self::CHANNEL_MANUAL;
     }
 
+    protected function userIdentifier(): \Illuminate\Database\Eloquent\Casts\Attribute
+    {
+        return \Illuminate\Database\Eloquent\Casts\Attribute::make(
+            get: function (): string {
+                $redeemedBy = $this->redeemedBy;
+
+                if (! $redeemedBy) {
+                    return 'N/A';
+                }
+
+                // If it's a user model, return email
+                if ($this->redeemed_by_type === 'user' && method_exists($redeemedBy, 'getAttribute')) {
+                    return $redeemedBy->getAttribute('email') ?? 'N/A';
+                }
+
+                // For other types, try to get an identifier
+                if (method_exists($redeemedBy, 'getAttribute')) {
+                    return $redeemedBy->getAttribute('id') ?? 'N/A';
+                }
+
+                return 'N/A';
+            }
+        );
+    }
+
     protected function casts(): array
     {
         return [
