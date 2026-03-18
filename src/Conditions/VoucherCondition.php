@@ -23,7 +23,7 @@ use JsonException;
  * This class implements the same interfaces as CartCondition to provide voucher-specific behavior
  * while maintaining compatibility with the cart's pricing engine.
  *
- * @implements \Illuminate\Contracts\Support\Arrayable<string, mixed>
+ * @implements Arrayable<string, mixed>
  */
 class VoucherCondition implements Arrayable, CartConditionConvertible
 {

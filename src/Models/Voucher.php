@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\Affiliates\Models\Affiliate;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Vouchers\Enums\VoucherType;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Spatie\ModelStates\HasStates;
 
 /**
@@ -38,8 +40,8 @@ use Spatie\ModelStates\HasStates;
  * @property bool $allows_manual_redemption
  * @property string|null $owner_type
  * @property int|string|null $owner_id
- * @property \Illuminate\Support\Carbon|null $starts_at
- * @property \Illuminate\Support\Carbon|null $expires_at
+ * @property Carbon|null $starts_at
+ * @property Carbon|null $expires_at
  * @property VoucherStatus $status
  * @property array<string, mixed>|null $target_definition
  * @property array<string, mixed>|null $metadata
@@ -47,8 +49,8 @@ use Spatie\ModelStates\HasStates;
  * @property array<string>|null $exclusion_groups
  * @property int $stacking_priority
  * @property string|null $affiliate_id
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
  * @property-read int $times_used
  * @property-read float|null $usageProgress
  * @property-read string|null $owner_display_name
@@ -58,7 +60,7 @@ use Spatie\ModelStates\HasStates;
  * @property-read int $wallet_claimed_count
  * @property-read int $wallet_redeemed_count
  * @property-read int $wallet_available_count
- * @property-read \AIArmada\Affiliates\Models\Affiliate|null $affiliate
+ * @property-read Affiliate|null $affiliate
  */
 class Voucher extends Model
 {
@@ -136,12 +138,12 @@ class Voucher extends Model
     /**
      * Get the affiliate that owns this voucher (when aiarmada/affiliates is installed).
      *
-     * @return BelongsTo<\AIArmada\Affiliates\Models\Affiliate, $this>|BelongsTo<Model, $this>
+     * @return BelongsTo<Affiliate, $this>|BelongsTo<Model, $this>
      */
     public function affiliate(): BelongsTo
     {
-        if (\class_exists(\AIArmada\Affiliates\Models\Affiliate::class)) {
-            return $this->belongsTo(\AIArmada\Affiliates\Models\Affiliate::class, 'affiliate_id');
+        if (\class_exists(Affiliate::class)) {
+            return $this->belongsTo(Affiliate::class, 'affiliate_id');
         }
 
         return $this->belongsTo(Model::class, 'affiliate_id');
@@ -193,7 +195,7 @@ class Voucher extends Model
 
     public function isExpired(): bool
     {
-        /** @var \Illuminate\Support\Carbon|null $expiresAt */
+        /** @var Carbon|null $expiresAt */
         $expiresAt = $this->getAttribute('expires_at');
 
         return $expiresAt !== null && $expiresAt->isPast();
@@ -201,7 +203,7 @@ class Voucher extends Model
 
     public function hasStarted(): bool
     {
-        /** @var \Illuminate\Support\Carbon|null $startsAt */
+        /** @var Carbon|null $startsAt */
         $startsAt = $this->getAttribute('starts_at');
 
         return $startsAt === null || $startsAt->isPast();

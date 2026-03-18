@@ -18,6 +18,7 @@ use AIArmada\Vouchers\States\Paused;
 use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 
 class VoucherValidator
@@ -106,7 +107,7 @@ class VoucherValidator
                 $currency = mb_strtoupper($voucher->currency ?? config('vouchers.default_currency', 'MYR'));
                 $formattedMinValue = (string) Money::{$currency}($voucher->min_cart_value);
 
-                \Illuminate\Support\Facades\Log::info('Voucher min cart value check failed', [
+                Log::info('Voucher min cart value check failed', [
                     'code' => $code,
                     'cartTotal' => $cartTotal,
                     'min_cart_value' => $voucher->min_cart_value,
