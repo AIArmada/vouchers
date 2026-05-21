@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Traits;
 
+use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\Models\VoucherTransaction;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
 use Exception;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
@@ -77,7 +79,7 @@ trait HasVouchers
     {
         // Check if assigned
         $isAssigned = $this->assignedVouchers()
-            ->where('vouchers.id', $voucher->getKey())
+            ->whereKey($voucher->getKey())
             ->exists();
 
         if (! $isAssigned) {
@@ -103,7 +105,7 @@ trait HasVouchers
     public function assignAndCreditVoucher(Voucher $voucher, int $creditAmount = 0, string $description = 'Assignment Gift'): VoucherTransaction
     {
         // Assign if not already assigned
-        if (! $this->assignedVouchers()->where('vouchers.id', $voucher->getKey())->exists()) {
+        if (! $this->assignedVouchers()->whereKey($voucher->getKey())->exists()) {
             $this->assignedVouchers()->attach($voucher->getKey());
         }
 
@@ -167,7 +169,7 @@ trait HasVouchers
      */
     public function addVoucherToWallet(string $voucherCode): VoucherWallet
     {
-        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+        $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
 
         return $this->voucherWallets()->create([
             'voucher_id' => $voucher->id,
@@ -183,7 +185,7 @@ trait HasVouchers
      */
     public function removeVoucherFromWallet(string $voucherCode): bool
     {
-        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+        $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
 
         return $this->voucherWallets()
             ->where('voucher_id', $voucher->id)
@@ -196,7 +198,7 @@ trait HasVouchers
      */
     public function hasVoucherInWallet(string $voucherCode): bool
     {
-        $voucher = Voucher::where('code', $voucherCode)->first();
+        $voucher = $this->voucherQueryByCode($voucherCode)->first();
 
         if (! $voucher) {
             return false;
@@ -256,7 +258,7 @@ trait HasVouchers
      */
     public function markVoucherAsRedeemed(string $voucherCode): void
     {
-        $voucher = Voucher::where('code', $voucherCode)->firstOrFail();
+        $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
 
         $walletEntry = $this->voucherWallets()
             ->where('voucher_id', $voucher->id)
@@ -275,5 +277,32 @@ trait HasVouchers
             ->when($onlyAvailable, fn ($query) => $query->where('is_redeemed', false))
             ->orderBy('claimed_at')
             ->first();
+    }
+
+    /**
+     * @return Builder<Voucher>
+     */
+    protected function voucherQueryByCode(string $voucherCode): Builder
+    {
+        $includeGlobal = (bool) config('vouchers.owner.include_global', false);
+        $normalizedCode = $this->normalizeVoucherCode($voucherCode);
+
+        /** @var Builder<Voucher> $query */
+        $query = Voucher::query()
+            ->forOwner(OwnerContext::resolve(), $includeGlobal)
+            ->where('code', $normalizedCode);
+
+        return $query;
+    }
+
+    protected function normalizeVoucherCode(string $voucherCode): string
+    {
+        $normalized = mb_trim($voucherCode);
+
+        if (config('vouchers.code.auto_uppercase', true)) {
+            return mb_strtoupper($normalized);
+        }
+
+        return $normalized;
     }
 }

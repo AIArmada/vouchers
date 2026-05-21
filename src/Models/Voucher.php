@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Models;
 
 use AIArmada\Affiliates\Models\Affiliate;
+use AIArmada\CommerceSupport\Support\MoneyFormatter;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Vouchers\Enums\VoucherType;
 use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
 use AIArmada\Vouchers\States\VoucherStatus;
-use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -172,7 +172,7 @@ class Voucher extends Model
      * @param  Builder<static>  $query
      * @return Builder<static>
      */
-    public function scopeForOwner(Builder $query, ?Model $owner = null, bool $includeGlobal = true): Builder
+    public function scopeForOwner(Builder $query, ?Model $owner = null, bool $includeGlobal = false): Builder
     {
         if (! config('vouchers.owner.enabled', false)) {
             return $query;
@@ -413,9 +413,9 @@ class Voucher extends Model
         }
 
         // Value is stored as cents
-        $currency = mb_strtoupper((string) ($this->getAttribute('currency') ?? config('vouchers.default_currency', 'MYR')));
+        $currency = (string) ($this->getAttribute('currency') ?? config('vouchers.default_currency', 'MYR'));
 
-        return (string) Money::{$currency}($value);
+        return MoneyFormatter::formatMinor($value, $currency);
     }
 
     /**

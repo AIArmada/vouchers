@@ -1,3 +1,7 @@
+---
+title: Creating Vouchers
+---
+
 # Creating Vouchers
 
 ## Basic Creation

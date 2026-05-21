@@ -1,3 +1,7 @@
+---
+title: Manual Redemption
+---
+
 # Manual Redemption
 
 Manual redemption allows vouchers to be redeemed outside the normal cart checkout flow. This is useful for:

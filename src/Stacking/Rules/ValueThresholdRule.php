@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Stacking\Rules;
 
 use AIArmada\Cart\Cart;
+use AIArmada\CommerceSupport\Support\MoneyFormatter;
 use AIArmada\Vouchers\Conditions\VoucherCondition;
 use AIArmada\Vouchers\Stacking\Contracts\StackingRuleInterface;
 use AIArmada\Vouchers\Stacking\Enums\StackingRuleType;
 use AIArmada\Vouchers\Stacking\StackingDecision;
-use Akaunting\Money\Money;
 use Illuminate\Support\Collection;
 
 /**
@@ -63,8 +63,6 @@ final class ValueThresholdRule implements StackingRuleInterface
 
     private function formatMoney(int $amountInCents, Cart $cart): string
     {
-        $currency = config('vouchers.default_currency', 'MYR');
-
-        return (string) Money::{$currency}($amountInCents);
+        return MoneyFormatter::formatMinor($amountInCents, (string) config('vouchers.default_currency', 'MYR'));
     }
 }

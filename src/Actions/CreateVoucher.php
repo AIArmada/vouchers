@@ -54,18 +54,26 @@ final class CreateVoucher
             ];
 
             // Handle owner assignment
-            if (isset($data['owner_type'], $data['owner_id'])) {
-                $createData['owner_type'] = $data['owner_type'];
-                $createData['owner_id'] = $data['owner_id'];
-            } elseif (
+            if (
                 config('vouchers.owner.enabled', false)
                 && config('vouchers.owner.auto_assign_on_create', true)
             ) {
                 $owner = OwnerContext::resolve();
+
                 if ($owner !== null) {
+                    // Defense-in-depth: never trust inbound owner columns when a
+                    // concrete owner context is resolved for this request.
                     $createData['owner_type'] = $owner->getMorphClass();
                     $createData['owner_id'] = $owner->getKey();
+                } elseif (isset($data['owner_type'], $data['owner_id'])) {
+                    // Explicit system-level writes may pass owner columns when no
+                    // owner context is currently resolved.
+                    $createData['owner_type'] = $data['owner_type'];
+                    $createData['owner_id'] = $data['owner_id'];
                 }
+            } elseif (isset($data['owner_type'], $data['owner_id'])) {
+                $createData['owner_type'] = $data['owner_type'];
+                $createData['owner_id'] = $data['owner_id'];
             }
 
             return VoucherModel::create($createData);

@@ -9,6 +9,7 @@ use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
@@ -63,6 +64,26 @@ final class VoucherWallet extends Model
         $prefix = (string) config('vouchers.database.table_prefix', '');
 
         return $tables['voucher_wallets'] ?? $prefix . 'voucher_wallets';
+    }
+
+    /**
+     * Null-out the wallet FK on any transactions when this wallet is deleted.
+     * VoucherTransaction.voucher_wallet_id is a nullable FK (no DB cascade),
+     * so application code must handle the orphan-prevention here.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (VoucherWallet $wallet): void {
+            $wallet->transactions()->update(['voucher_wallet_id' => null]);
+        });
+    }
+
+    /**
+     * @return HasMany<VoucherTransaction, $this>
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(VoucherTransaction::class, 'voucher_wallet_id');
     }
 
     /**

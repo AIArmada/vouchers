@@ -1,3 +1,7 @@
+---
+title: Multi-Tenancy
+---
+
 # Multi-Tenancy (Owner Scoping)
 
 The vouchers package supports multi-tenancy, allowing vouchers to be scoped to specific owners such as merchants, stores, or vendors.
@@ -8,17 +12,24 @@ Enable owner scoping in `config/vouchers.php`:
 
 ```php
 'owner' => [
-    'enabled' => true,
-    'include_global' => true,
+    'enabled' => env('VOUCHERS_OWNER_ENABLED', false),
+    'include_global' => false,
     'auto_assign_on_create' => true,
 ],
 ```
 
-Bind the owner resolver centrally via `commerce-support`:
+Add to your `.env`:
 
 ```env
 VOUCHERS_OWNER_ENABLED=true
-COMMERCE_OWNER_RESOLVER=App\Support\CurrentMerchantResolver
+```
+
+Bind the owner resolver in `AppServiceProvider::register()`:
+
+```php
+use AIArmada\CommerceSupport\Contracts\OwnerResolverInterface;
+
+$this->app->bind(OwnerResolverInterface::class, CurrentTenantResolver::class);
 ```
 
 ### Options

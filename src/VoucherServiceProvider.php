@@ -33,6 +33,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
         $package
             ->name('vouchers')
             ->hasConfigFile()
+            ->runsMigrations()
             ->discoversMigrations();
     }
 

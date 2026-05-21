@@ -1,3 +1,7 @@
+---
+title: Cart Integration
+---
+
 # Cart Integration
 
 The vouchers package integrates seamlessly with AIArmada Cart through the `InteractsWithVouchers` trait.

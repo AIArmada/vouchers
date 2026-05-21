@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('type'); // credit, debit
             $table->string('currency', 3);
             $table->string('description')->nullable();
-            $jsonType = (string) commerce_json_column_type('vouchers', 'json');
+            $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
             $table->{$jsonType}('metadata')->nullable();
             $table->timestamps();
             $table->index(['voucher_id', 'walletable_type', 'walletable_id']);

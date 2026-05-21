@@ -1,3 +1,7 @@
+---
+title: Usage Tracking
+---
+
 # Usage Tracking & Analytics
 
 The vouchers package tracks voucher applications and redemptions for analytics and reporting.

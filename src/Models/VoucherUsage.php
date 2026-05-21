@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * @property string $id
@@ -84,35 +85,87 @@ final class VoucherUsage extends Model
         return $this->getAttribute('channel') === self::CHANNEL_MANUAL;
     }
 
+    public function isOrderRedemption(): bool
+    {
+        $redeemedBy = $this->resolveRedeemedBySafely();
+
+        $redeemedByType = mb_strtolower((string) ($this->redeemed_by_type ?? ''));
+
+        if ($redeemedByType !== '' && Str::contains($redeemedByType, 'order')) {
+            return true;
+        }
+
+        if (! $redeemedBy) {
+            return false;
+        }
+
+        return Str::contains(mb_strtolower($redeemedBy::class), 'order');
+    }
+
     protected function userIdentifier(): Attribute
     {
         return Attribute::make(
             get: function (): string {
-                $redeemedBy = $this->redeemedBy;
+                $redeemedBy = $this->resolveRedeemedBySafely();
 
                 if (! $redeemedBy) {
                     return 'N/A';
                 }
 
-                // If it's a user model, return email
-                if ($this->redeemed_by_type === 'user' && method_exists($redeemedBy, 'getAttribute')) {
-                    /** @var string|null $email */
-                    $email = $redeemedBy->getAttribute('email');
+                // Prefer email when available, regardless of morph alias/class naming.
+                $email = $this->getLoadedStringAttribute($redeemedBy, 'email');
 
-                    return $email ?? 'N/A';
+                if ($email !== null) {
+                    return $email;
                 }
 
-                // For other types, try to get an identifier
-                if (method_exists($redeemedBy, 'getAttribute')) {
-                    /** @var string|int|null $id */
-                    $id = $redeemedBy->getAttribute('id');
+                if ($this->isOrderRedemption()) {
+                    $orderNumber = $this->getLoadedStringAttribute($redeemedBy, 'order_number');
 
-                    return $id !== null ? (string) $id : 'N/A';
+                    if ($orderNumber !== null) {
+                        return $orderNumber;
+                    }
+                }
+
+                $identifier = $redeemedBy->getKey();
+
+                if ($identifier !== null && $identifier !== '') {
+                    return (string) $identifier;
                 }
 
                 return 'N/A';
             }
         );
+    }
+
+    private function resolveRedeemedBySafely(): ?Model
+    {
+        if (! $this->relationLoaded('redeemedBy')) {
+            return null;
+        }
+
+        $relation = $this->getRelation('redeemedBy');
+
+        return $relation instanceof Model ? $relation : null;
+    }
+
+    private function getLoadedStringAttribute(Model $model, string $attribute): ?string
+    {
+        $attributes = $model->getAttributes();
+
+        if (! array_key_exists($attribute, $attributes)) {
+            return null;
+        }
+
+        $value = $attributes[$attribute];
+
+        if ($value === null) {
+            return null;
+        }
+
+        $stringValue = (string) $value;
+
+        return $stringValue !== '' ? $stringValue : null;
     }
 
     protected function casts(): array

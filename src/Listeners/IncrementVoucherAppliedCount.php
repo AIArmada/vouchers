@@ -20,13 +20,17 @@ final class IncrementVoucherAppliedCount
         $ownerId = $event->voucher->ownerId;
         $ownerType = $event->voucher->ownerType;
 
+        // Intentional owner-scope bypass: the event carries the owner tuple directly from
+        // the VoucherApplied event, so we look up by (code + owner) rather than relying
+        // on ambient OwnerContext.  withoutGlobalScopes() is safe here because we
+        // re-apply the owner constraint manually below.
         Voucher::withoutGlobalScopes()
             ->where('code', $voucherCode)
             ->when($ownerId !== null && $ownerType !== null, function (Builder $query) use ($ownerId, $ownerType): void {
                 $query->where('owner_id', $ownerId)->where('owner_type', $ownerType);
             })
             ->when($ownerId === null || $ownerType === null, function (Builder $query): void {
-                $query->whereNull('owner_id');
+                $query->whereNull('owner_id')->whereNull('owner_type');
             })
             ->increment('applied_count');
     }

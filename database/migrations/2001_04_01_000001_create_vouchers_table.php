@@ -26,7 +26,7 @@ return new class extends Migration
             // Discount configuration
             $table->string('type'); // percentage, fixed, free_shipping
             $table->bigInteger('value'); // For percentage: store as basis points (e.g., 10.50% = 1050). For fixed: store as cents
-            $jsonType = (string) commerce_json_column_type('vouchers', 'json');
+            $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
             $table->{$jsonType}('value_config')->nullable();
             $table->string('credit_destination', 50)->nullable();
             $table->integer('credit_delay_hours')->default(0);
@@ -71,7 +71,7 @@ return new class extends Migration
         });
 
         // Optional: create GIN indexes when using jsonb on PostgreSQL
-        $jsonColumnType = commerce_json_column_type('vouchers', 'json');
+        $jsonColumnType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
 
         if (
             $jsonColumnType === 'jsonb'

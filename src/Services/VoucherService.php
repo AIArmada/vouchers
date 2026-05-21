@@ -62,11 +62,12 @@ class VoucherService implements VoucherServiceInterface
         if (
             config('vouchers.owner.enabled', false)
             && config('vouchers.owner.auto_assign_on_create', true)
-            && ! isset($data['owner_type'], $data['owner_id'])
         ) {
             $owner = $this->resolveOwner();
 
-            if ($owner) {
+            if ($owner !== null) {
+                // Defense-in-depth: never trust inbound owner columns when a
+                // concrete owner context is resolved for this request.
                 $data['owner_type'] = $owner->getMorphClass();
                 $data['owner_id'] = $owner->getKey();
             }
@@ -301,7 +302,8 @@ class VoucherService implements VoucherServiceInterface
             ->firstOrFail();
 
         /** @var VoucherModel $voucher */
-        $cacheKey = "voucher_reservation:{$voucher->id}:{$sessionId}";
+        $cacheKey = $this->reservationCacheKey((string) $voucher->id, $sessionId);
+        $sessionsKey = $this->reservationSessionsCacheKey((string) $voucher->id);
         $ttl = config('vouchers.reservation.ttl', 900); // 15 minutes default
 
         Cache::put($cacheKey, [
@@ -309,6 +311,18 @@ class VoucherService implements VoucherServiceInterface
             'session_id' => $sessionId,
             'reserved_at' => now()->toIso8601String(),
         ], $ttl);
+
+        $sessionIds = Cache::get($sessionsKey, []);
+
+        if (! is_array($sessionIds)) {
+            $sessionIds = [];
+        }
+
+        if (! in_array($sessionId, $sessionIds, true)) {
+            $sessionIds[] = $sessionId;
+        }
+
+        Cache::put($sessionsKey, array_values($sessionIds), $ttl);
     }
 
     /**
@@ -324,11 +338,18 @@ class VoucherService implements VoucherServiceInterface
             return;
         }
 
-        // Clear all reservations for this voucher
-        $pattern = "voucher_reservation:{$voucher->id}:*";
+        $sessionsKey = $this->reservationSessionsCacheKey((string) $voucher->id);
+        $sessionIds = Cache::get($sessionsKey, []);
 
-        // Since we can't pattern-delete in all cache drivers,
-        // we rely on TTL expiration for cleanup
+        if (is_array($sessionIds)) {
+            foreach ($sessionIds as $sessionId) {
+                if (is_string($sessionId) && $sessionId !== '') {
+                    Cache::forget($this->reservationCacheKey((string) $voucher->id, $sessionId));
+                }
+            }
+        }
+
+        Cache::forget($sessionsKey);
     }
 
     /**
@@ -341,7 +362,7 @@ class VoucherService implements VoucherServiceInterface
             ->firstOrFail();
 
         /** @var VoucherModel $voucher */
-        $currency = config('vouchers.currency', 'MYR');
+        $currency = config('vouchers.default_currency', 'MYR');
 
         $voucherType = $voucher->type instanceof VoucherType
             ? $voucher->type
@@ -361,5 +382,15 @@ class VoucherService implements VoucherServiceInterface
             metadata: ['order_id' => $orderId],
             voucherModel: $voucher
         );
+    }
+
+    private function reservationCacheKey(string $voucherId, string $sessionId): string
+    {
+        return "voucher_reservation:{$voucherId}:{$sessionId}";
+    }
+
+    private function reservationSessionsCacheKey(string $voucherId): string
+    {
+        return "voucher_reservation_sessions:{$voucherId}";
     }
 }

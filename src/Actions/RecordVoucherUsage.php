@@ -38,13 +38,17 @@ final class RecordVoucherUsage
         ?VoucherModel $voucherModel = null
     ): VoucherUsage {
         return DB::transaction(function () use ($code, $discountAmount, $channel, $metadata, $redeemedBy, $notes, $voucherModel): VoucherUsage {
-            $voucher = $voucherModel ?? $this->findVoucher($code);
+            $voucher = $this->resolveVoucher($code, $voucherModel);
 
-            /** @var VoucherModel $lockedVoucher */
-            $lockedVoucher = VoucherModel::query()
+            /** @var VoucherModel|null $lockedVoucher */
+            $lockedVoucher = $this->voucherQuery()
                 ->whereKey($voucher->id)
                 ->lockForUpdate()
-                ->firstOrFail();
+                ->first();
+
+            if (! $lockedVoucher) {
+                throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
+            }
 
             // Check global usage limit
             if ($lockedVoucher->usage_limit !== null) {
@@ -79,10 +83,11 @@ final class RecordVoucherUsage
                 'used_at' => now(),
             ]);
 
-            // Update the voucher use count
-            $lockedVoucher->increment('applied_count');
-
             // Update status to depleted if usage limit reached
+            // Note: applied_count tracks cart applications (incremented by IncrementVoucherAppliedCount
+            // listener on VoucherApplied event). Do NOT increment it here — that would double-count
+            // any voucher that is both applied to a cart and then redeemed, corrupting conversion
+            // rate and abandoned count statistics.
             if ($lockedVoucher->usage_limit !== null) {
                 $newUsageCount = VoucherUsage::where('voucher_id', $lockedVoucher->id)->count();
                 if ($newUsageCount >= $lockedVoucher->usage_limit) {
@@ -100,6 +105,23 @@ final class RecordVoucherUsage
 
         $voucher = $this->voucherQuery()
             ->where('code', $normalizedCode)
+            ->first();
+
+        if (! $voucher) {
+            throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
+        }
+
+        return $voucher;
+    }
+
+    private function resolveVoucher(string $code, ?VoucherModel $voucherModel): VoucherModel
+    {
+        if ($voucherModel === null) {
+            return $this->findVoucher($code);
+        }
+
+        $voucher = $this->voucherQuery()
+            ->whereKey($voucherModel->getKey())
             ->first();
 
         if (! $voucher) {

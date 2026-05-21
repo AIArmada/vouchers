@@ -21,7 +21,7 @@ return new class extends Migration
             $table->uuidMorphs('assignee'); // User, etc.
             $table->timestamp('assigned_at')->useCurrent();
             $table->timestamp('expires_at')->nullable();
-            $jsonType = (string) commerce_json_column_type('vouchers', 'json');
+            $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
             $table->{$jsonType}('metadata')->nullable();
             $table->unique(['voucher_id', 'assignee_type', 'assignee_id'], 'voucher_assignee_unique');
             $table->index('voucher_id');

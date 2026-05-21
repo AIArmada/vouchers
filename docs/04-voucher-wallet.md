@@ -1,3 +1,7 @@
+---
+title: Voucher Wallet
+---
+
 # Voucher Wallet
 
 The voucher wallet allows users to save vouchers for later use. This is useful for loyalty programs, gift vouchers, and promotional campaigns.

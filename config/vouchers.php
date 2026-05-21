@@ -123,11 +123,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Reservation
+    |--------------------------------------------------------------------------
+    */
+    'reservation' => [
+        'ttl' => 900, // seconds (15 minutes)
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Checkout Integration
+    |--------------------------------------------------------------------------
+    */
+    'checkout' => [
+        'block_on_invalid' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Affiliates Integration (aiarmada/affiliates)
     |--------------------------------------------------------------------------
     */
     'affiliates' => [
-        'enabled' => env('VOUCHERS_AFFILIATES_ENABLED', true),
+        'enabled' => env('VOUCHERS_AFFILIATES_ENABLED', false),
         'auto_create_voucher' => false,
         'create_on_activation' => true,
         'set_default_voucher_code' => true,
