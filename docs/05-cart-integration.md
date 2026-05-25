@@ -4,6 +4,8 @@ title: Cart Integration
 
 # Cart Integration
 
+This deep dive covers how vouchers enter, stay in, and get revalidated inside the cart pipeline.
+
 The vouchers package integrates seamlessly with AIArmada Cart through the `InteractsWithVouchers` trait.
 
 ## Applying Vouchers

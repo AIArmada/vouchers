@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Services;
 
+use AIArmada\Orders\Models\Order;
 use AIArmada\Vouchers\Actions\RecordVoucherUsage;
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
 use AIArmada\Vouchers\Contracts\VoucherServiceInterface;
@@ -20,6 +21,7 @@ use Akaunting\Money\Money;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Schema;
 
 class VoucherService implements VoucherServiceInterface
 {
@@ -375,13 +377,46 @@ class VoucherService implements VoucherServiceInterface
             default => Money::{$currency}(0),
         };
 
+        $redeemedBy = $this->resolveRedeemedByOrder($orderId);
+        $metadata = [
+            'order_id' => $orderId,
+        ];
+
+        if ($redeemedBy instanceof Model) {
+            $orderNumber = $redeemedBy->getAttribute('order_number');
+
+            if (is_string($orderNumber) && mb_trim($orderNumber) !== '') {
+                $metadata['order_number'] = mb_trim($orderNumber);
+            }
+
+            foreach (['subtotal', 'discount_total', 'grand_total'] as $attribute) {
+                $value = $redeemedBy->getAttribute($attribute);
+
+                if (is_numeric($value)) {
+                    $metadata[$attribute] = (int) $value;
+                }
+            }
+        }
+
         $this->recordUsage(
             code: $code,
             discountAmount: $discountAmount,
             channel: 'checkout',
-            metadata: ['order_id' => $orderId],
+            metadata: $metadata,
+            redeemedBy: $redeemedBy,
             voucherModel: $voucher
         );
+    }
+
+    private function resolveRedeemedByOrder(string $orderId): ?Model
+    {
+        if (! class_exists(Order::class) || ! Schema::hasTable((new Order)->getTable())) {
+            return null;
+        }
+
+        return Order::query()
+            ->select(['id', 'order_number', 'subtotal', 'discount_total', 'grand_total'])
+            ->find($orderId);
     }
 
     private function reservationCacheKey(string $voucherId, string $sessionId): string

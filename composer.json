@@ -1,34 +1,35 @@
 {
-  "name": "aiarmada/vouchers",
-  "description": "Voucher and coupon system for Laravel built on the cart package's condition system, with support for multiple redemption types, usage limits, and expiry dates",
-  "license": "MIT",
-  "homepage": "https://github.com/aiarmada/commerce",
-  "support": {
-    "issues": "https://github.com/aiarmada/commerce/issues",
-    "source": "https://github.com/aiarmada/commerce"
-  },
-  "require": {
-    "aiarmada/cart": "self.version",
-    "aiarmada/commerce-support": "self.version"
-  },
-  "autoload": {
-    "psr-4": {
-      "AIArmada\\Vouchers\\": "src/"
-    }
-  },
-  "extra": {
-    "laravel": {
-      "providers": [
-        "AIArmada\\Vouchers\\VoucherServiceProvider"
-      ],
-      "aliases": {
-        "Voucher": "AIArmada\\Vouchers\\Facades\\Voucher"
-      }
-    }
-  },
-  "config": {
-    "sort-packages": true
-  },
-  "minimum-stability": "dev",
-  "prefer-stable": true
+    "name": "aiarmada/vouchers",
+    "description": "Voucher and coupon system for Laravel built on the cart package's condition system, with support for multiple redemption types, usage limits, and expiry dates",
+    "license": "MIT",
+    "homepage": "https://github.com/aiarmada/commerce",
+    "support": {
+        "issues": "https://github.com/aiarmada/commerce/issues",
+        "source": "https://github.com/aiarmada/commerce"
+    },
+    "require": {
+        "aiarmada/cart": "self.version",
+        "aiarmada/commerce-support": "self.version",
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "AIArmada\\Vouchers\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "AIArmada\\Vouchers\\VoucherServiceProvider"
+            ],
+            "aliases": {
+                "Voucher": "AIArmada\\Vouchers\\Facades\\Voucher"
+            }
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }

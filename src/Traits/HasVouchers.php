@@ -20,6 +20,8 @@ trait HasVouchers
 {
     /**
      * Get the vouchers assigned to this model (Credit System).
+     *
+     * @return BelongsToMany<Voucher, $this>
      */
     public function assignedVouchers(): BelongsToMany
     {
@@ -38,6 +40,8 @@ trait HasVouchers
 
     /**
      * Get the voucher transaction entries for this model (Credit System).
+     *
+     * @return MorphMany<VoucherTransaction, $this>
      */
     public function voucherTransactions(): MorphMany
     {
@@ -46,6 +50,8 @@ trait HasVouchers
 
     /**
      * Get all vouchers in the wallet (Coupon System).
+     *
+     * @return MorphMany<VoucherWallet, $this>
      */
     public function voucherWallets(): MorphMany
     {
@@ -54,6 +60,8 @@ trait HasVouchers
 
     /**
      * Get the voucher usages redeemed by this model.
+     *
+     * @return MorphMany<VoucherUsage, $this>
      */
     public function voucherUsages(): MorphMany
     {
@@ -120,7 +128,8 @@ trait HasVouchers
     {
         $balance = $this->voucherBalance($voucher) + $creditAmount;
 
-        return $this->voucherTransactions()->create([
+        /** @var VoucherTransaction $transaction */
+        $transaction = $this->voucherTransactions()->create([
             'voucher_id' => $voucher->getKey(),
             'voucher_wallet_id' => $voucherWallet?->getKey(),
             'amount' => $creditAmount,
@@ -129,6 +138,8 @@ trait HasVouchers
             'currency' => $voucher->currency,
             'description' => $description,
         ]);
+
+        return $transaction;
     }
 
     /**
@@ -171,13 +182,16 @@ trait HasVouchers
     {
         $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
 
-        return $this->voucherWallets()->create([
+        /** @var VoucherWallet $voucherWallet */
+        $voucherWallet = $this->voucherWallets()->create([
             'voucher_id' => $voucher->id,
             'owner_type' => $voucher->owner_type,
             'owner_id' => $voucher->owner_id,
             'is_claimed' => true,
             'claimed_at' => now(),
         ]);
+
+        return $voucherWallet;
     }
 
     /**
@@ -216,12 +230,14 @@ trait HasVouchers
      */
     public function getAvailableVouchers(): Collection
     {
-        return $this->voucherWallets()
+        /** @var Collection<int, VoucherWallet> $wallets */
+        $wallets = $this->voucherWallets()
             ->with('voucher')
             ->where('is_claimed', true)
             ->where('is_redeemed', false)
-            ->get()
-            ->filter(fn (VoucherWallet $wallet) => $wallet->canBeUsed());
+            ->get();
+
+        return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->canBeUsed());
     }
 
     /**
@@ -231,11 +247,14 @@ trait HasVouchers
      */
     public function getRedeemedVouchers(): Collection
     {
-        return $this->voucherWallets()
+        /** @var Collection<int, VoucherWallet> $wallets */
+        $wallets = $this->voucherWallets()
             ->with('voucher')
             ->where('is_redeemed', true)
             ->orderByDesc('redeemed_at')
             ->get();
+
+        return $wallets;
     }
 
     /**
@@ -245,12 +264,14 @@ trait HasVouchers
      */
     public function getExpiredVouchers(): Collection
     {
-        return $this->voucherWallets()
+        /** @var Collection<int, VoucherWallet> $wallets */
+        $wallets = $this->voucherWallets()
             ->with('voucher')
             ->where('is_claimed', true)
             ->where('is_redeemed', false)
-            ->get()
-            ->filter(fn (VoucherWallet $wallet) => $wallet->isExpired());
+            ->get();
+
+        return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->isExpired());
     }
 
     /**
@@ -260,6 +281,7 @@ trait HasVouchers
     {
         $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
 
+        /** @var VoucherWallet|null $walletEntry */
         $walletEntry = $this->voucherWallets()
             ->where('voucher_id', $voucher->id)
             ->where('is_redeemed', false)
@@ -272,11 +294,14 @@ trait HasVouchers
 
     protected function resolveVoucherWalletEntry(Voucher $voucher, bool $onlyAvailable = true): ?VoucherWallet
     {
-        return $this->voucherWallets()
+        /** @var VoucherWallet|null $walletEntry */
+        $walletEntry = $this->voucherWallets()
             ->where('voucher_id', $voucher->getKey())
             ->when($onlyAvailable, fn ($query) => $query->where('is_redeemed', false))
             ->orderBy('claimed_at')
             ->first();
+
+        return $walletEntry;
     }
 
     /**

@@ -1,10 +1,10 @@
 ---
-title: Creating Vouchers
+title: Usage
 ---
 
-# Creating Vouchers
+# Usage
 
-## Basic Creation
+## Creating vouchers
 
 Use the `Voucher` facade to create vouchers:
 

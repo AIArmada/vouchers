@@ -6,8 +6,8 @@ title: Installation
 
 ## Requirements
 
-- PHP 8.2 or higher
-- Laravel 12 or higher
+- PHP 8.4 or higher
+- Laravel 13 or higher
 - AIArmada Cart package
 
 ## Installation via Composer

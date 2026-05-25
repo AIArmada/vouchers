@@ -4,6 +4,8 @@ title: Manual Redemption
 
 # Manual Redemption
 
+Keep this flow explicit and privileged; it bypasses the normal cart-driven redemption path on purpose.
+
 Manual redemption allows vouchers to be redeemed outside the normal cart checkout flow. This is useful for:
 
 - Point-of-sale (POS) transactions

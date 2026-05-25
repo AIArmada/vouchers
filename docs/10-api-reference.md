@@ -4,6 +4,8 @@ title: API Reference
 
 # API Reference
 
+This page is the low-level surface map for voucher facades, cart helpers, DTOs, enums, and events.
+
 ## Facade: Voucher
 
 ```php

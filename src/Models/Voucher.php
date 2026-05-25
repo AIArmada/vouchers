@@ -460,11 +460,76 @@ class Voucher extends Model
 
     protected static function booted(): void
     {
+        self::saving(function (Voucher $voucher): void {
+            $voucher->syncAffiliateMetadataFromAffiliateId();
+        });
+
         self::deleting(function (Voucher $voucher): void {
             $voucher->usages()->delete();
             $voucher->walletEntries()->delete();
             $voucher->transactions()->delete();
         });
+    }
+
+    private function syncAffiliateMetadataFromAffiliateId(): void
+    {
+        $affiliateId = $this->affiliate_id;
+
+        if (! is_string($affiliateId) || $affiliateId === '') {
+            $this->removeAffiliateMetadata();
+
+            return;
+        }
+
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+        $metadata['affiliate_id'] = $affiliateId;
+
+        $affiliate = $this->resolveAffiliateForMetadataSync($affiliateId);
+
+        if ($affiliate instanceof Affiliate) {
+            $metadata['affiliate_code'] = (string) $affiliate->code;
+        } else {
+            unset($metadata['affiliate_code']);
+        }
+
+        $this->metadata = $metadata;
+    }
+
+    private function removeAffiliateMetadata(): void
+    {
+        if (! is_array($this->metadata)) {
+            return;
+        }
+
+        $metadata = $this->metadata;
+
+        unset($metadata['affiliate_id'], $metadata['affiliate_code']);
+
+        $this->metadata = $metadata !== [] ? $metadata : null;
+    }
+
+    private function resolveAffiliateForMetadataSync(string $affiliateId): ?Affiliate
+    {
+        if (! class_exists(Affiliate::class)) {
+            return null;
+        }
+
+        $query = Affiliate::query()->whereKey($affiliateId);
+
+        if (
+            is_string($this->owner_type)
+            && $this->owner_type !== ''
+            && $this->owner_id !== null
+            && $this->owner_id !== ''
+        ) {
+            $query
+                ->where('owner_type', $this->owner_type)
+                ->where('owner_id', $this->owner_id);
+        }
+
+        $affiliate = $query->first();
+
+        return $affiliate instanceof Affiliate ? $affiliate : null;
     }
 
     protected function casts(): array

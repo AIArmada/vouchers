@@ -4,6 +4,8 @@ title: Multi-Tenancy
 
 # Multi-Tenancy (Owner Scoping)
 
+Treat `owner = null` as a global voucher row, not as implicit access to every owner's vouchers.
+
 The vouchers package supports multi-tenancy, allowing vouchers to be scoped to specific owners such as merchants, stores, or vendors.
 
 ## Configuration

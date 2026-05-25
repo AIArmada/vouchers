@@ -4,6 +4,8 @@ title: Usage Tracking
 
 # Usage Tracking & Analytics
 
+Use this page when you need the reporting and analytics side of vouchers rather than the creation flow itself.
+
 The vouchers package tracks voucher applications and redemptions for analytics and reporting.
 
 ## Application Tracking
@@ -85,6 +87,16 @@ foreach ($history as $usage) {
 }
 ```
 
+When checkout redemptions are recorded through `VoucherService::redeem()` and the Orders package is installed, voucher usage records also capture richer order context:
+
+- `redeemedBy` points at the order model
+- `metadata.order_number`
+- `metadata.subtotal`
+- `metadata.discount_total`
+- `metadata.grand_total`
+
+This extra metadata is what powers downstream Filament exports, affiliate-aware voucher reporting, and order-linked support workflows.
+
 ## VoucherUsage Model
 
 ```php
@@ -118,7 +130,7 @@ $avgDiscount = VoucherUsage::where('currency', 'MYR')
 | `used_at` | datetime | When redeemed |
 | `redeemed_by_type` | string | User model type |
 | `redeemed_by_id` | mixed | User ID |
-| `metadata` | array | Additional data |
+| `metadata` | array | Additional data, including `order_id` and optional order totals for checkout redemptions |
 | `notes` | string | Human-readable notes |
 | `target_definition` | array | Voucher targeting at time of use |
 

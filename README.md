@@ -19,7 +19,7 @@ A voucher and coupon system for Laravel built on the [AIArmada Cart](../cart) pa
 ## Requirements
 
 - PHP 8.2+
-- Laravel 12+
+- Laravel 13+
 - **AIArmada Cart** (required dependency)
 
 ## Installation
