@@ -41,6 +41,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
     {
         $this->app->singleton(VoucherService::class);
         $this->app->singleton(VoucherValidator::class);
+        $this->app->singleton(Services\VoucherDiscountCalculator::class);
         $this->app->singleton(VoucherRulesFactory::class, static fn () => new VoucherRulesFactory);
         $this->app->singleton(AffiliateIntegrationRegistrar::class);
 
@@ -132,6 +133,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
             VoucherService::class,
             VoucherServiceInterface::class,
             VoucherValidator::class,
+            Services\VoucherDiscountCalculator::class,
             VoucherRulesFactory::class,
             AffiliateIntegrationRegistrar::class,
             'voucher',

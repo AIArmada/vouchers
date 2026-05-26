@@ -48,6 +48,7 @@ use Spatie\ModelStates\HasStates;
  * @property array<string, mixed>|null $stacking_rules
  * @property array<string>|null $exclusion_groups
  * @property int $stacking_priority
+ * @property string|null $promotion_id
  * @property string|null $affiliate_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
@@ -61,6 +62,7 @@ use Spatie\ModelStates\HasStates;
  * @property-read int $wallet_redeemed_count
  * @property-read int $wallet_available_count
  * @property-read Affiliate|null $affiliate
+ * @property-read Model|null $promotion
  */
 class Voucher extends Model
 {
@@ -100,6 +102,7 @@ class Voucher extends Model
         'stacking_rules',
         'exclusion_groups',
         'stacking_priority',
+        'promotion_id',
         'affiliate_id',
     ];
 
@@ -133,6 +136,24 @@ class Voucher extends Model
     public function transactions(): HasMany
     {
         return $this->hasMany(VoucherTransaction::class);
+    }
+
+    /**
+     * Get the promotion that issued this voucher when the promotions package is installed.
+     *
+     * @return BelongsTo<Model, $this>
+     */
+    public function promotion(): BelongsTo
+    {
+        $promotionClass = '\\AIArmada\\Promotions\\Models\\Promotion';
+
+        if (class_exists($promotionClass)) {
+            /** @var class-string<Model> $promotionClass */
+
+            return $this->belongsTo($promotionClass, 'promotion_id');
+        }
+
+        return $this->belongsTo(Model::class, 'promotion_id');
     }
 
     /**

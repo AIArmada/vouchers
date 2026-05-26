@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-trait HasVouchers
+trait HasVouchers // @phpstan-ignore trait.unused
 {
     /**
      * Get the vouchers assigned to this model (Credit System).

@@ -63,6 +63,7 @@ class VoucherData extends Data
         public readonly VoucherStatus $status,
         public readonly ?array $targetDefinition,
         public readonly ?array $metadata,
+        public readonly ?string $promotionId = null,
     ) {}
 
     /**
@@ -105,6 +106,7 @@ class VoucherData extends Data
             status: $status,
             targetDefinition: $voucher->target_definition,
             metadata: $voucher->metadata,
+            promotionId: $voucher->promotion_id,
         );
     }
 
@@ -181,6 +183,7 @@ class VoucherData extends Data
             status: $status,
             targetDefinition: $data['target_definition'] ?? $data['targetDefinition'] ?? null,
             metadata: $data['metadata'] ?? null,
+            promotionId: $data['promotion_id'] ?? $data['promotionId'] ?? null,
         );
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Services;
 
 use AIArmada\Orders\Models\Order;
+use AIArmada\Vouchers\Actions\CreateVoucher;
 use AIArmada\Vouchers\Actions\RecordVoucherUsage;
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
 use AIArmada\Vouchers\Contracts\VoucherServiceInterface;
@@ -56,9 +57,10 @@ class VoucherService implements VoucherServiceInterface
      */
     public function create(array $data): VoucherData
     {
-        /** @var string $code */
-        $code = $data['code'];
-        $data['code'] = $this->normalizeCode($code);
+        if (isset($data['code']) && is_string($data['code'])) {
+            $data['code'] = $this->normalizeCode($data['code']);
+        }
+
         $data['status'] ??= Active::class;
 
         if (
@@ -75,7 +77,8 @@ class VoucherService implements VoucherServiceInterface
             }
         }
 
-        $voucher = VoucherModel::create($data);
+        /** @var VoucherModel $voucher */
+        $voucher = CreateVoucher::run($data);
 
         return VoucherData::fromModel($voucher);
     }

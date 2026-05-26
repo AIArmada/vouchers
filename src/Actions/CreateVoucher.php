@@ -36,6 +36,9 @@ final class CreateVoucher
                 'name' => $data['name'] ?? $normalizedCode,
                 'type' => $data['type'],
                 'value' => $data['value'],
+                'value_config' => $data['value_config'] ?? $data['valueConfig'] ?? null,
+                'credit_destination' => $data['credit_destination'] ?? $data['creditDestination'] ?? null,
+                'credit_delay_hours' => $data['credit_delay_hours'] ?? $data['creditDelayHours'] ?? 0,
                 'currency' => $data['currency'] ?? config('vouchers.default_currency', 'MYR'),
                 'description' => $data['description'] ?? null,
                 'status' => $data['status'] ?? Active::class,
@@ -51,6 +54,8 @@ final class CreateVoucher
                 'exclusion_groups' => $data['exclusion_groups'] ?? null,
                 'stacking_priority' => $data['stacking_priority'] ?? 100,
                 'allows_manual_redemption' => $data['allows_manual_redemption'] ?? false,
+                'promotion_id' => $data['promotion_id'] ?? $data['promotionId'] ?? null,
+                'affiliate_id' => $data['affiliate_id'] ?? $data['affiliateId'] ?? null,
             ];
 
             // Handle owner assignment
