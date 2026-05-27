@@ -25,7 +25,7 @@ return new class extends Migration
             $table->string('channel')->nullable();
             $table->nullableUuidMorphs('redeemed_by');
             $table->text('notes')->nullable();
-            $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
+            $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'jsonb'));
             $table->{$jsonType}('target_definition')->nullable();
             $table->{$jsonType}('metadata')->nullable();
             $table->timestamp('used_at');
@@ -40,7 +40,7 @@ return new class extends Migration
         });
 
         // Optional: create GIN index when using jsonb on PostgreSQL
-        $jsonColumnType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'json'));
+        $jsonColumnType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'jsonb'));
 
         if (
             $jsonColumnType === 'jsonb'
