@@ -22,6 +22,30 @@ $voucher = Voucher::create([
 ]);
 ```
 
+## Promotion-linked vouchers
+
+Vouchers can be linked back to a source promotion through `promotion_id`.
+
+```php
+use AIArmada\Promotions\Models\Promotion;
+
+$promotion = Promotion::query()->first();
+
+$voucher = Voucher::create([
+    'code' => 'RECOVER-ABCD1234',
+    'name' => 'Recovery Offer',
+    'type' => VoucherType::Fixed,
+    'value' => 2500,
+    'currency' => 'MYR',
+    'promotion_id' => $promotion?->id,
+    'metadata' => [
+        'source_promotion_name' => $promotion?->name,
+    ],
+]);
+```
+
+When the promotions package is installed, `Voucher::promotion()` resolves the issuing promotion. Promotion-linked vouchers are also surfaced in checkout payloads and Filament reporting via `promotion_id`.
+
 ## Voucher Types
 
 ### Percentage Discount

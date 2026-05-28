@@ -90,6 +90,7 @@ foreach ($history as $usage) {
 When checkout redemptions are recorded through `VoucherService::redeem()` and the Orders package is installed, voucher usage records also capture richer order context:
 
 - `redeemedBy` points at the order model
+- `metadata.order_id`
 - `metadata.order_number`
 - `metadata.subtotal`
 - `metadata.discount_total`
