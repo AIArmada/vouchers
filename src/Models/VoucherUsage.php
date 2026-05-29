@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use OwenIt\Auditing\Contracts\Auditable;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property string $id
@@ -30,9 +34,11 @@ use Illuminate\Support\Str;
  * @property-read string $user_identifier
  * @property-read string $cart_identifier
  */
-final class VoucherUsage extends Model
+final class VoucherUsage extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasUuids;
+    use LogsCommerceActivity;
 
     public const CHANNEL_AUTOMATIC = 'automatic';
 
@@ -176,5 +182,41 @@ final class VoucherUsage extends Model
             'target_definition' => 'array',
             'used_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getAuditInclude(): array
+    {
+        return [
+            'voucher_id',
+            'discount_amount',
+            'currency',
+            'channel',
+            'target_definition',
+            'redeemed_by_type',
+            'redeemed_by_id',
+            'used_at',
+            'notes',
+        ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'voucher_id',
+                'discount_amount',
+                'currency',
+                'channel',
+                'target_definition',
+                'redeemed_by_type',
+                'redeemed_by_id',
+                'used_at',
+            ])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('vouchers');
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -12,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Contracts\Auditable;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property string $id
@@ -31,11 +35,13 @@ use Illuminate\Support\Carbon;
  * @property-read Model|null $holder
  * @property-read Model|null $owner
  */
-final class VoucherWallet extends Model
+final class VoucherWallet extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasOwner;
     use HasOwnerScopeConfig;
     use HasUuids;
+    use LogsCommerceActivity;
 
     protected static string $ownerScopeConfigKey = 'vouchers.owner';
 
@@ -172,5 +178,40 @@ final class VoucherWallet extends Model
             'redeemed_at' => 'datetime',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getAuditInclude(): array
+    {
+        return [
+            'voucher_id',
+            'holder_type',
+            'holder_id',
+            'owner_type',
+            'owner_id',
+            'is_claimed',
+            'claimed_at',
+            'is_redeemed',
+            'redeemed_at',
+        ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'voucher_id',
+                'holder_type',
+                'holder_id',
+                'is_claimed',
+                'claimed_at',
+                'is_redeemed',
+                'redeemed_at',
+            ])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('vouchers');
     }
 }

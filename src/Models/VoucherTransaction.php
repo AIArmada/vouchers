@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Contracts\Auditable;
+use Spatie\Activitylog\Support\LogOptions;
 
 /**
  * @property string $id
@@ -28,9 +32,11 @@ use Illuminate\Support\Carbon;
  * @property-read VoucherWallet|null $voucherWallet
  * @property-read Model|null $walletable
  */
-final class VoucherTransaction extends Model
+final class VoucherTransaction extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasUuids;
+    use LogsCommerceActivity;
 
     protected $fillable = [
         'voucher_id',
@@ -89,5 +95,42 @@ final class VoucherTransaction extends Model
             'currency' => 'string',
             'metadata' => 'array',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getAuditInclude(): array
+    {
+        return [
+            'voucher_id',
+            'voucher_wallet_id',
+            'walletable_type',
+            'walletable_id',
+            'amount',
+            'balance',
+            'type',
+            'currency',
+            'description',
+        ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'voucher_id',
+                'voucher_wallet_id',
+                'walletable_type',
+                'walletable_id',
+                'amount',
+                'balance',
+                'type',
+                'currency',
+                'description',
+            ])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('vouchers');
     }
 }

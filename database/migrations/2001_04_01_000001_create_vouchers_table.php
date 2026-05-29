@@ -54,6 +54,7 @@ return new class extends Migration
             $table->{$jsonType}('stacking_rules')->nullable();
             $table->{$jsonType}('exclusion_groups')->nullable();
             $table->integer('stacking_priority')->default(100);
+            $table->foreignUuid('promotion_id')->nullable();
             $table->foreignUuid('affiliate_id')->nullable();
 
             $table->timestamps();
@@ -68,6 +69,7 @@ return new class extends Migration
             $table->index(['status', 'starts_at', 'expires_at'], 'vouchers_active_lookup_idx');
             $table->index('currency');
             $table->index('stacking_priority');
+            $table->index('promotion_id');
             $table->index('affiliate_id');
         });
 

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Models;
 
 use AIArmada\Affiliates\Models\Affiliate;
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Support\MoneyFormatter;
 use AIArmada\CommerceSupport\Traits\HasOwner;
 use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
@@ -19,6 +21,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use OwenIt\Auditing\Contracts\Auditable;
+use Spatie\Activitylog\Support\LogOptions;
 use Spatie\ModelStates\HasStates;
 
 /**
@@ -64,8 +68,9 @@ use Spatie\ModelStates\HasStates;
  * @property-read Affiliate|null $affiliate
  * @property-read Model|null $promotion
  */
-class Voucher extends Model
+class Voucher extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasFactory;
     use HasOwner {
         scopeForOwner as baseScopeForOwner;
@@ -73,6 +78,7 @@ class Voucher extends Model
     use HasOwnerScopeConfig;
     use HasStates;
     use HasUuids;
+    use LogsCommerceActivity;
 
     protected static string $ownerScopeConfigKey = 'vouchers.owner';
 
@@ -575,5 +581,63 @@ class Voucher extends Model
             'exclusion_groups' => 'array',
             'stacking_priority' => 'integer',
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getAuditInclude(): array
+    {
+        return [
+            'code',
+            'name',
+            'type',
+            'value',
+            'value_config',
+            'credit_destination',
+            'credit_delay_hours',
+            'currency',
+            'min_cart_value',
+            'max_discount',
+            'usage_limit',
+            'usage_limit_per_user',
+            'applied_count',
+            'allows_manual_redemption',
+            'starts_at',
+            'expires_at',
+            'status',
+            'target_definition',
+            'stacking_rules',
+            'exclusion_groups',
+            'stacking_priority',
+            'promotion_id',
+            'affiliate_id',
+            'owner_type',
+            'owner_id',
+        ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly([
+                'code',
+                'name',
+                'type',
+                'value',
+                'currency',
+                'usage_limit',
+                'usage_limit_per_user',
+                'applied_count',
+                'allows_manual_redemption',
+                'starts_at',
+                'expires_at',
+                'status',
+                'promotion_id',
+                'affiliate_id',
+            ])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges()
+            ->useLogName('vouchers');
     }
 }
