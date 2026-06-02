@@ -148,7 +148,7 @@ This controls whether checkout should stop immediately when a voucher becomes in
     'auto_create_voucher' => false,
     'create_on_activation' => true,
     'set_default_voucher_code' => true,
-    'code_format' => 'prefix_code',
+    'code_format' => 'code_only',
     'code_prefix' => 'REF',
     'voucher_defaults' => [
         'type' => 'percentage',
