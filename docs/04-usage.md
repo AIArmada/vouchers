@@ -254,18 +254,42 @@ Voucher::create([
 
 ## Target Definition
 
-Define voucher targeting rules:
+Use `target_definition` to control the cart condition target, meaning the portion of the cart the voucher adjusts:
 
 ```php
+use AIArmada\Cart\Conditions\ConditionTarget;
+use AIArmada\Vouchers\Enums\VoucherType;
+use AIArmada\Vouchers\Facades\Voucher;
+
 Voucher::create([
-    'code' => 'CATEGORY',
-    'name' => 'Electronics Discount',
+    'code' => 'SUBTOTAL',
+    'name' => 'Subtotal Discount',
+    'type' => VoucherType::Percentage,
+    'value' => 1000,
+    'currency' => 'MYR',
+    'target_definition' => ConditionTarget::from('cart@cart_subtotal/aggregate')->toArray(),
+]);
+```
+
+Eligibility targeting rules belong under the `targeting` key:
+
+```php
+use AIArmada\Vouchers\Enums\VoucherType;
+use AIArmada\Vouchers\Facades\Voucher;
+
+Voucher::create([
+    'code' => 'MINQTY',
+    'name' => 'Quantity Discount',
     'type' => VoucherType::Percentage,
     'value' => 1000,
     'currency' => 'MYR',
     'target_definition' => [
-        'type' => 'category',
-        'categories' => ['electronics', 'computers'],
+        'targeting' => [
+            'mode' => 'all',
+            'rules' => [
+                ['type' => 'cart_quantity', 'operator' => '>=', 'value' => 2],
+            ],
+        ],
     ],
 ]);
 ```

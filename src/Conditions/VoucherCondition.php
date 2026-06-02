@@ -502,7 +502,7 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
     private function determineTarget(VoucherData $voucher): ConditionTarget
     {
         $explicitTarget = $voucher->targetDefinition;
-        if (is_array($explicitTarget)) {
+        if (is_array($explicitTarget) && $this->hasConditionTargetKeys($explicitTarget)) {
             return ConditionTarget::from($explicitTarget)
                 ->with($this->targetMeta($voucher));
         }
@@ -520,6 +520,16 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
             ->applyAggregate()
             ->withMeta($this->targetMeta($voucher))
             ->build();
+    }
+
+    /**
+     * @param  array<string, mixed>  $targetDefinition
+     */
+    private function hasConditionTargetKeys(array $targetDefinition): bool
+    {
+        return array_key_exists('scope', $targetDefinition)
+            || array_key_exists('phase', $targetDefinition)
+            || array_key_exists('application', $targetDefinition);
     }
 
     /**

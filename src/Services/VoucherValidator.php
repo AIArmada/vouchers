@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Services;
 
 use AIArmada\Cart\Cart;
+use AIArmada\Cart\Conditions\ConditionTarget;
 use AIArmada\CommerceSupport\Support\MoneyFormatter;
 use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
 use AIArmada\CommerceSupport\Targeting\Enums\TargetingMode;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
+use Throwable;
 
 class VoucherValidator
 {
@@ -217,16 +219,45 @@ class VoucherValidator
             return null;
         }
 
-        $targeting = $targetDefinition['targeting'] ?? $targetDefinition;
+        // Stored data may contain a cart-condition target (scope, phase, application)
+        // rather than targeting/eligibility rules (mode, rules, expression). When no
+        // targeting-specific keys exist, only known cart-condition targets bypass eligibility.
+        $hasTargeting = array_key_exists('targeting', $targetDefinition);
+        $targeting = $hasTargeting ? $targetDefinition['targeting'] : null;
+
+        if ($this->hasConditionTargetKeys($targetDefinition) && ! $this->isConditionTargetDefinition($targetDefinition)) {
+            return $this->invalidTargetingDefinition();
+        }
+
+        if ($hasTargeting && $targeting !== null && ! is_array($targeting)) {
+            return $this->invalidTargetingDefinition();
+        }
+
+        if ($targeting === null) {
+            if ($this->isConditionTargetDefinition($targetDefinition)) {
+                return null;
+            }
+
+            $targeting = $targetDefinition;
+        }
 
         if (! is_array($targeting) || empty($targeting)) {
             return null;
         }
 
-        $modeValue = $targeting['mode'] ?? 'all';
-        $mode = $modeValue instanceof TargetingMode
-            ? $modeValue
-            : TargetingMode::tryFrom($modeValue) ?? TargetingMode::All;
+        $modeValue = $targeting['mode'] ?? TargetingMode::All->value;
+
+        if ($modeValue instanceof TargetingMode) {
+            $mode = $modeValue;
+        } elseif (is_string($modeValue)) {
+            $mode = TargetingMode::tryFrom($modeValue);
+
+            if ($mode === null) {
+                return $this->invalidTargetingDefinition();
+            }
+        } else {
+            return $this->invalidTargetingDefinition();
+        }
 
         /** @var array<int, array<string, mixed>> $rules */
         $rules = [];
@@ -244,7 +275,7 @@ class VoucherValidator
             // Any mode with no rules and no expression is a degenerate/misconfigured
             // targeting definition. Fail closed (sentinel) for ALL modes — including Custom —
             // rather than silently granting eligibility.
-            return ['mode' => $mode->value, 'rules' => [], '__empty_rules' => true];
+            return $this->invalidTargetingDefinition($mode);
         }
 
         $data = [
@@ -257,5 +288,41 @@ class VoucherValidator
         }
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $targetDefinition
+     */
+    private function isConditionTargetDefinition(array $targetDefinition): bool
+    {
+        if (! isset($targetDefinition['scope'], $targetDefinition['phase'], $targetDefinition['application'])) {
+            return false;
+        }
+
+        try {
+            ConditionTarget::from($targetDefinition);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function invalidTargetingDefinition(TargetingMode $mode = TargetingMode::All): array
+    {
+        return ['mode' => $mode->value, 'rules' => [], '__empty_rules' => true];
+    }
+
+    /**
+     * @param  array<string, mixed>  $targetDefinition
+     */
+    private function hasConditionTargetKeys(array $targetDefinition): bool
+    {
+        return array_key_exists('scope', $targetDefinition)
+            || array_key_exists('phase', $targetDefinition)
+            || array_key_exists('application', $targetDefinition);
     }
 }
