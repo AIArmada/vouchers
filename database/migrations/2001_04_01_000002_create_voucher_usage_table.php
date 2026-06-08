@@ -28,7 +28,7 @@ return new class extends Migration
             $jsonType = (string) config('vouchers.database.json_column_type', commerce_json_column_type('vouchers', 'jsonb'));
             $table->{$jsonType}('target_definition')->nullable();
             $table->{$jsonType}('metadata')->nullable();
-            $table->timestamp('used_at');
+            $table->timestampTz('used_at');
 
             // Indexes
             $table->index('voucher_id'); // For querying usage by voucher

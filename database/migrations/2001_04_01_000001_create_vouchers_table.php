@@ -44,8 +44,8 @@ return new class extends Migration
             $table->boolean('allows_manual_redemption')->default(false);
 
             // Validity period
-            $table->datetime('starts_at')->nullable();
-            $table->datetime('expires_at')->nullable();
+            $table->timestampTz('starts_at')->nullable();
+            $table->timestampTz('expires_at')->nullable();
             $table->string('status')->default('active'); // active, paused, expired, depleted
 
             // Metadata
@@ -57,7 +57,7 @@ return new class extends Migration
             $table->foreignUuid('promotion_id')->nullable();
             $table->foreignUuid('affiliate_id')->nullable();
 
-            $table->timestamps();
+            $table->timestampsTz();
 
             // Indexes
             $table->index('code');

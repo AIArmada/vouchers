@@ -23,11 +23,11 @@ return new class extends Migration
             $table->nullableUuidMorphs('owner');
             $table->nullableUuidMorphs('holder');
             $table->boolean('is_claimed')->default(false);
-            $table->timestamp('claimed_at')->nullable();
+            $table->timestampTz('claimed_at')->nullable();
             $table->boolean('is_redeemed')->default(false);
-            $table->timestamp('redeemed_at')->nullable();
+            $table->timestampTz('redeemed_at')->nullable();
             $table->{$jsonType}('metadata')->nullable();
-            $table->timestamps();
+            $table->timestampsTz();
 
             // Indexes for common queries
             $table->index('voucher_id'); // For querying wallet entries by voucher
