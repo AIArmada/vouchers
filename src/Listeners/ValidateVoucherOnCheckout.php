@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Listeners;
 
 use AIArmada\Cart\Cart;
+use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Vouchers\Exceptions\VoucherValidationException;
-use AIArmada\Vouchers\Services\VoucherService;
 
 /**
  * Validates vouchers when checkout is initiated.
@@ -18,10 +18,6 @@ use AIArmada\Vouchers\Services\VoucherService;
 class ValidateVoucherOnCheckout
 {
     private const string VOUCHER_METADATA_KEY = 'voucher_codes';
-
-    public function __construct(
-        private readonly VoucherService $voucherService
-    ) {}
 
     /**
      * Handle the checkout started event.
@@ -52,7 +48,7 @@ class ValidateVoucherOnCheckout
         $validCodes = [];
 
         foreach ($voucherCodes as $code) {
-            $result = $this->voucherService->validate($code, $cart);
+            $result = ValidateVoucherCode::run($code, $cart);
 
             if ($result->isValid) {
                 $validCodes[] = $code;

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Actions;
 
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
+use AIArmada\Vouchers\Data\VoucherData;
+use AIArmada\Vouchers\Events\VoucherUsageRecorded;
 use AIArmada\Vouchers\Exceptions\VoucherNotFoundException;
 use AIArmada\Vouchers\Exceptions\VoucherUsageLimitException;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
@@ -94,6 +96,8 @@ final class RecordVoucherUsage
                     $lockedVoucher->update(['status' => Depleted::class]);
                 }
             }
+
+            event(new VoucherUsageRecorded(VoucherData::fromModel($lockedVoucher), $usage));
 
             return $usage;
         });

@@ -14,7 +14,16 @@ use Illuminate\Support\Collection;
 /**
  * Default stacking policy implementation.
  *
- * Provides configurable stacking behavior with sensible defaults.
+ * This is the canonical entry point for stacking logic. Clients create a policy
+ * via static factories or the constructor, then use:
+ *
+ *     $policy->canAdd($newVoucher, $existingVouchers, $cart)  // StackingDecision
+ *     $policy->resolveConflict($vouchers, $cart)              // Collection
+ *     $policy->getApplicationOrder($vouchers, $cart)          // Collection
+ *
+ * StackingPolicy defines the behavior (mode, rules) and delegates rule
+ * evaluation to StackingEngine. StackingDecision is the immutable result
+ * returned from rule evaluation.
  */
 class StackingPolicy implements StackingPolicyInterface
 {

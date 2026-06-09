@@ -7,6 +7,7 @@ namespace AIArmada\Vouchers\Services;
 use AIArmada\Orders\Models\Order;
 use AIArmada\Vouchers\Actions\CreateVoucher;
 use AIArmada\Vouchers\Actions\RecordVoucherUsage;
+use AIArmada\Vouchers\Actions\UpdateVoucher;
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
 use AIArmada\Vouchers\Contracts\VoucherServiceInterface;
 use AIArmada\Vouchers\Data\VoucherData;
@@ -63,19 +64,8 @@ class VoucherService implements VoucherServiceInterface
 
         $data['status'] ??= Active::class;
 
-        if (
-            config('vouchers.owner.enabled', false)
-            && config('vouchers.owner.auto_assign_on_create', true)
-        ) {
-            $owner = $this->resolveOwner();
-
-            if ($owner !== null) {
-                // Defense-in-depth: never trust inbound owner columns when a
-                // concrete owner context is resolved for this request.
-                $data['owner_type'] = $owner->getMorphClass();
-                $data['owner_id'] = $owner->getKey();
-            }
-        }
+        // Owner auto-assignment is handled inside CreateVoucher Action.
+        // Do NOT duplicate it here to keep a single source of truth.
 
         /** @var VoucherModel $voucher */
         $voucher = CreateVoucher::run($data);
@@ -88,22 +78,9 @@ class VoucherService implements VoucherServiceInterface
      */
     public function update(string $code, array $data): VoucherData
     {
-        $voucher = $this->voucherQuery()
-            ->where('code', $this->normalizeCode($code))
-            ->firstOrFail();
+        $voucher = UpdateVoucher::run($this->normalizeCode($code), $data);
 
-        if (isset($data['code'])) {
-            /** @var string $newCode */
-            $newCode = $data['code'];
-            $data['code'] = $this->normalizeCode($newCode);
-        }
-
-        $voucher->update($data);
-
-        /** @var VoucherModel $freshVoucher */
-        $freshVoucher = $voucher->fresh();
-
-        return VoucherData::fromModel($freshVoucher);
+        return VoucherData::fromModel($voucher);
     }
 
     public function delete(string $code): bool

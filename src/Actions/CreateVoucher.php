@@ -6,6 +6,8 @@ namespace AIArmada\Vouchers\Actions;
 
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\Vouchers\Concerns\NormalizesVoucherCodes;
+use AIArmada\Vouchers\Data\VoucherData;
+use AIArmada\Vouchers\Events\VoucherCreated;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\States\Active;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +83,11 @@ final class CreateVoucher
                 $createData['owner_id'] = $data['owner_id'];
             }
 
-            return VoucherModel::create($createData);
+            $voucher = VoucherModel::create($createData);
+
+            event(new VoucherCreated(VoucherData::fromModel($voucher)));
+
+            return $voucher;
         });
     }
 

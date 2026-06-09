@@ -72,6 +72,10 @@ trait HasVoucherEventData
      */
     public function getCartIdentifier(): ?string
     {
+        if (! property_exists($this, 'cart') || $this->cart === null) {
+            return null;
+        }
+
         return $this->cart->getIdentifier();
     }
 
@@ -80,6 +84,10 @@ trait HasVoucherEventData
      */
     public function getCartInstance(): ?string
     {
+        if (! property_exists($this, 'cart') || $this->cart === null) {
+            return null;
+        }
+
         return $this->cart->getInstanceName();
     }
 
