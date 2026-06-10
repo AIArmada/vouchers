@@ -9,6 +9,7 @@ use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Events\VoucherExpired;
 use AIArmada\Vouchers\Exceptions\VoucherNotFoundException;
 use AIArmada\Vouchers\States\Expired;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
 use Lorisleiva\Actions\Concerns\AsAction;
 
@@ -27,6 +28,10 @@ final class ExpireVoucher
 
             if (! $voucher) {
                 throw VoucherNotFoundException::withCode($code);
+            }
+
+            if ($voucher->expires_at === null) {
+                $voucher->expires_at = CarbonImmutable::now();
             }
 
             $voucher->status->transitionTo(Expired::class);

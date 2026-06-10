@@ -9,6 +9,7 @@ use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\Models\VoucherTransaction;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
+use Carbon\CarbonImmutable;
 use Exception;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -187,8 +188,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
             'voucher_id' => $voucher->id,
             'owner_type' => $voucher->owner_type,
             'owner_id' => $voucher->owner_id,
-            'is_claimed' => true,
-            'claimed_at' => now(),
+            'claimed_at' => CarbonImmutable::now(),
         ]);
 
         return $voucherWallet;
@@ -203,7 +203,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
 
         return $this->voucherWallets()
             ->where('voucher_id', $voucher->id)
-            ->where('is_redeemed', false)
+            ->whereNull('redeemed_at')
             ->delete() > 0;
     }
 
@@ -233,8 +233,8 @@ trait HasVouchers // @phpstan-ignore trait.unused
         /** @var Collection<int, VoucherWallet> $wallets */
         $wallets = $this->voucherWallets()
             ->with('voucher')
-            ->where('is_claimed', true)
-            ->where('is_redeemed', false)
+            ->whereNotNull('claimed_at')
+            ->whereNull('redeemed_at')
             ->get();
 
         return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->canBeUsed());
@@ -250,7 +250,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
         /** @var Collection<int, VoucherWallet> $wallets */
         $wallets = $this->voucherWallets()
             ->with('voucher')
-            ->where('is_redeemed', true)
+            ->whereNotNull('redeemed_at')
             ->orderByDesc('redeemed_at')
             ->get();
 
@@ -267,8 +267,8 @@ trait HasVouchers // @phpstan-ignore trait.unused
         /** @var Collection<int, VoucherWallet> $wallets */
         $wallets = $this->voucherWallets()
             ->with('voucher')
-            ->where('is_claimed', true)
-            ->where('is_redeemed', false)
+            ->whereNotNull('claimed_at')
+            ->whereNull('redeemed_at')
             ->get();
 
         return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->isExpired());
@@ -284,7 +284,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
         /** @var VoucherWallet|null $walletEntry */
         $walletEntry = $this->voucherWallets()
             ->where('voucher_id', $voucher->id)
-            ->where('is_redeemed', false)
+            ->whereNull('redeemed_at')
             ->first();
 
         if ($walletEntry) {
@@ -297,7 +297,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
         /** @var VoucherWallet|null $walletEntry */
         $walletEntry = $this->voucherWallets()
             ->where('voucher_id', $voucher->getKey())
-            ->when($onlyAvailable, fn ($query) => $query->where('is_redeemed', false))
+            ->when($onlyAvailable, fn ($query) => $query->whereNull('redeemed_at'))
             ->orderBy('claimed_at')
             ->first();
 

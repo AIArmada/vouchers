@@ -13,6 +13,7 @@ use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\States\Depleted;
 use Akaunting\Money\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -93,7 +94,10 @@ final class RecordVoucherUsage
             if ($lockedVoucher->usage_limit !== null) {
                 $newUsageCount = VoucherUsage::where('voucher_id', $lockedVoucher->id)->count();
                 if ($newUsageCount >= $lockedVoucher->usage_limit) {
-                    $lockedVoucher->update(['status' => Depleted::class]);
+                    $lockedVoucher->update([
+                        'status' => Depleted::class,
+                        'depleted_at' => CarbonImmutable::now(),
+                    ]);
                 }
             }
 

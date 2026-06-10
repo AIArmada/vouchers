@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Support\Carbon;
+use Carbon\CarbonImmutable;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -24,13 +24,11 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $holder_id
  * @property string|null $owner_type
  * @property string|null $owner_id
- * @property bool $is_claimed
- * @property Carbon|null $claimed_at
- * @property bool $is_redeemed
- * @property Carbon|null $redeemed_at
+ * @property CarbonImmutable|null $claimed_at
+ * @property CarbonImmutable|null $redeemed_at
  * @property array<string, mixed>|null $metadata
- * @property Carbon $created_at
- * @property Carbon $updated_at
+ * @property CarbonImmutable $created_at
+ * @property CarbonImmutable $updated_at
  * @property-read Voucher $voucher
  * @property-read Model|null $holder
  * @property-read Model|null $owner
@@ -51,16 +49,9 @@ final class VoucherWallet extends Model implements Auditable
         'holder_id',
         'owner_type',
         'owner_id',
-        'is_claimed',
         'claimed_at',
-        'is_redeemed',
         'redeemed_at',
         'metadata',
-    ];
-
-    protected $attributes = [
-        'is_claimed' => false,
-        'is_redeemed' => false,
     ];
 
     public function getTable(): string
@@ -110,31 +101,29 @@ final class VoucherWallet extends Model implements Auditable
 
     public function claim(): void
     {
-        if ($this->is_claimed) {
+        if ($this->claimed_at !== null) {
             return;
         }
 
         $this->update([
-            'is_claimed' => true,
-            'claimed_at' => now(),
+            'claimed_at' => CarbonImmutable::now(),
         ]);
     }
 
     public function markAsRedeemed(): void
     {
-        if ($this->is_redeemed) {
+        if ($this->redeemed_at !== null) {
             return;
         }
 
         $this->update([
-            'is_redeemed' => true,
-            'redeemed_at' => now(),
+            'redeemed_at' => CarbonImmutable::now(),
         ]);
     }
 
     public function isAvailable(): bool
     {
-        return $this->is_claimed && ! $this->is_redeemed;
+        return $this->claimed_at !== null && $this->redeemed_at === null;
     }
 
     public function isExpired(): bool
@@ -172,10 +161,8 @@ final class VoucherWallet extends Model implements Auditable
     protected function casts(): array
     {
         return [
-            'is_claimed' => 'boolean',
-            'claimed_at' => 'datetime',
-            'is_redeemed' => 'boolean',
-            'redeemed_at' => 'datetime',
+            'claimed_at' => 'immutable_datetime',
+            'redeemed_at' => 'immutable_datetime',
             'metadata' => 'array',
         ];
     }
@@ -191,9 +178,7 @@ final class VoucherWallet extends Model implements Auditable
             'holder_id',
             'owner_type',
             'owner_id',
-            'is_claimed',
             'claimed_at',
-            'is_redeemed',
             'redeemed_at',
         ];
     }
@@ -205,9 +190,7 @@ final class VoucherWallet extends Model implements Auditable
                 'voucher_id',
                 'holder_type',
                 'holder_id',
-                'is_claimed',
                 'claimed_at',
-                'is_redeemed',
                 'redeemed_at',
             ])
             ->logOnlyDirty()

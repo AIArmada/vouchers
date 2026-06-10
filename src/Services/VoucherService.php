@@ -20,6 +20,7 @@ use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
 use AIArmada\Vouchers\States\Active;
 use Akaunting\Money\Money;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
@@ -248,8 +249,7 @@ class VoucherService implements VoucherServiceInterface
             'holder_id' => $holder->getKey(),
             'owner_type' => $voucher->owner_type,
             'owner_id' => $voucher->owner_id,
-            'is_claimed' => true,
-            'claimed_at' => now(),
+            'claimed_at' => CarbonImmutable::now(),
             'metadata' => $metadata,
         ]);
     }
@@ -267,7 +267,7 @@ class VoucherService implements VoucherServiceInterface
         return VoucherWallet::where('voucher_id', $voucher->id)
             ->where('holder_type', $holder->getMorphClass())
             ->where('holder_id', $holder->getKey())
-            ->where('is_redeemed', false)
+            ->whereNull('redeemed_at')
             ->delete() > 0;
     }
 

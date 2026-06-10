@@ -8,6 +8,7 @@ use AIArmada\Vouchers\Concerns\QueriesVouchers;
 use AIArmada\Vouchers\Exceptions\VoucherNotFoundException;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherWallet;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -46,8 +47,7 @@ final class AddVoucherToWallet
                 'holder_id' => $holder->getKey(),
                 'owner_type' => $voucher->owner_type,
                 'owner_id' => $voucher->owner_id,
-                'is_claimed' => true,
-                'claimed_at' => now(),
+                'claimed_at' => CarbonImmutable::now(),
                 'metadata' => $metadata,
             ]);
         });

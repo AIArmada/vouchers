@@ -13,6 +13,7 @@ use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Vouchers\Enums\VoucherType;
 use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
+use AIArmada\Vouchers\States\Paused;
 use AIArmada\Vouchers\States\VoucherStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -20,6 +21,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\Activitylog\Support\LogOptions;
@@ -44,8 +46,11 @@ use Spatie\ModelStates\HasStates;
  * @property bool $allows_manual_redemption
  * @property string|null $owner_type
  * @property int|string|null $owner_id
- * @property Carbon|null $starts_at
- * @property Carbon|null $expires_at
+ * @property CarbonImmutable|null $starts_at
+ * @property CarbonImmutable|null $expires_at
+ * @property CarbonImmutable|null $paused_at
+ * @property CarbonImmutable|null $depleted_at
+ * @property CarbonImmutable|null $last_activated_at
  * @property VoucherStatus $status
  * @property array<string, mixed>|null $target_definition
  * @property array<string, mixed>|null $metadata
@@ -100,6 +105,9 @@ class Voucher extends Model implements Auditable
         'allows_manual_redemption',
         'starts_at',
         'expires_at',
+        'paused_at',
+        'depleted_at',
+        'last_activated_at',
         'status',
         'metadata',
         'owner_type',
@@ -462,7 +470,7 @@ class Voucher extends Model implements Auditable
     {
         $count = $this->attributes['wallet_claimed_count'] ?? null;
 
-        return $count !== null ? (int) $count : $this->walletEntries()->where('is_claimed', true)->count();
+        return $count !== null ? (int) $count : $this->walletEntries()->whereNotNull('claimed_at')->count();
     }
 
     /**
@@ -472,7 +480,7 @@ class Voucher extends Model implements Auditable
     {
         $count = $this->attributes['wallet_redeemed_count'] ?? null;
 
-        return $count !== null ? (int) $count : $this->walletEntries()->where('is_redeemed', true)->count();
+        return $count !== null ? (int) $count : $this->walletEntries()->whereNotNull('redeemed_at')->count();
     }
 
     /**
@@ -482,7 +490,7 @@ class Voucher extends Model implements Auditable
     {
         $count = $this->attributes['wallet_available_count'] ?? null;
 
-        return $count !== null ? (int) $count : $this->walletEntries()->where('is_redeemed', false)->count();
+        return $count !== null ? (int) $count : $this->walletEntries()->whereNull('redeemed_at')->count();
     }
 
     public function getPromotionSourceIdAttribute(): ?string
@@ -547,6 +555,25 @@ class Voucher extends Model implements Auditable
     {
         self::saving(function (Voucher $voucher): void {
             $voucher->syncAffiliateMetadataFromAffiliateId();
+
+            if ($voucher->isDirty('status')) {
+                $originalStatus = $voucher->getOriginal('status');
+
+                if ($voucher->status instanceof Paused && (! $originalStatus instanceof Paused)) {
+                    $voucher->paused_at = CarbonImmutable::now();
+                } elseif ($voucher->status instanceof Active && (! $originalStatus instanceof Active)) {
+                    $voucher->last_activated_at = CarbonImmutable::now();
+                    $voucher->paused_at = null;
+                } elseif ($voucher->status instanceof Depleted && (! $originalStatus instanceof Depleted)) {
+                    $voucher->depleted_at = CarbonImmutable::now();
+                }
+            }
+        });
+
+        self::creating(function (Voucher $voucher): void {
+            if ($voucher->status instanceof Active) {
+                $voucher->last_activated_at = CarbonImmutable::now();
+            }
         });
 
         self::deleting(function (Voucher $voucher): void {
@@ -631,8 +658,11 @@ class Voucher extends Model implements Auditable
             'usage_limit_per_user' => 'integer',
             'applied_count' => 'integer',
             'allows_manual_redemption' => 'boolean',
-            'starts_at' => 'datetime',
-            'expires_at' => 'datetime',
+            'starts_at' => 'immutable_datetime',
+            'expires_at' => 'immutable_datetime',
+            'paused_at' => 'immutable_datetime',
+            'depleted_at' => 'immutable_datetime',
+            'last_activated_at' => 'immutable_datetime',
             'metadata' => 'array',
             'target_definition' => 'array',
             'stacking_rules' => 'array',
@@ -663,6 +693,9 @@ class Voucher extends Model implements Auditable
             'allows_manual_redemption',
             'starts_at',
             'expires_at',
+            'paused_at',
+            'depleted_at',
+            'last_activated_at',
             'status',
             'target_definition',
             'stacking_rules',
@@ -690,6 +723,9 @@ class Voucher extends Model implements Auditable
                 'allows_manual_redemption',
                 'starts_at',
                 'expires_at',
+                'paused_at',
+                'depleted_at',
+                'last_activated_at',
                 'status',
                 'promotion_id',
                 'affiliate_id',

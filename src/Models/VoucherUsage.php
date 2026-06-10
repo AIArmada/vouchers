@@ -180,7 +180,7 @@ final class VoucherUsage extends Model implements Auditable
             'discount_amount' => 'integer', // Stored as cents
             'metadata' => 'array',
             'target_definition' => 'array',
-            'used_at' => 'datetime',
+            'used_at' => 'immutable_datetime',
         ];
     }
 
