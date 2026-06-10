@@ -28,7 +28,7 @@ use Spatie\Activitylog\Support\LogOptions;
  * @property string|null $notes
  * @property array<string, mixed>|null $metadata
  * @property array<string, mixed>|null $cart_snapshot
- * @property Carbon $used_at
+ * @property CarbonImmutable $used_at
  * @property-read Voucher $voucher
  * @property-read Model|null $redeemedBy
  * @property-read string $user_identifier
