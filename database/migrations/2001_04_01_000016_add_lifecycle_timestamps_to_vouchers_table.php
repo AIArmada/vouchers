@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestampTz('last_activated_at')->nullable();
         });
 
-        Schema::table($tableName, function (Blueprint $table) use ($tableName): void {
+        Schema::table($tableName, function (Blueprint $table): void {
             $table->index('paused_at');
             $table->index('depleted_at');
             $table->index('last_activated_at');
@@ -30,8 +30,10 @@ return new class extends Migration
 
         $fqcnDefault = addslashes(Active::class);
 
-        DB::statement("ALTER TABLE {$tableName} ALTER COLUMN status DROP DEFAULT");
-        DB::statement("ALTER TABLE {$tableName} ALTER COLUMN status SET DEFAULT '{$fqcnDefault}'");
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE {$tableName} ALTER COLUMN status DROP DEFAULT");
+            DB::statement("ALTER TABLE {$tableName} ALTER COLUMN status SET DEFAULT '{$fqcnDefault}'");
+        }
 
         DB::statement("UPDATE {$tableName} SET status = '{$fqcnDefault}' WHERE status = 'active'");
     }

@@ -32,7 +32,7 @@ return new class extends Migration
             $table->index(['voucher_id', 'claimed_at', 'redeemed_at'], 'voucher_wallets_available_idx');
         });
 
-        Schema::table($tableName, function (Blueprint $table): void {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName): void {
             DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");
         });
     }
