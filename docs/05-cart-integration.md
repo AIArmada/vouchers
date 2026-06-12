@@ -10,6 +10,8 @@ The vouchers package integrates seamlessly with AIArmada Cart through the `Inter
 
 ## Applying Vouchers
 
+### Via Cart Facade
+
 ```php
 use AIArmada\Cart\Facades\Cart;
 
@@ -21,7 +23,7 @@ try {
 }
 ```
 
-### With Custom Order
+#### With Custom Order
 
 The order parameter determines when the voucher is calculated relative to other cart conditions:
 
@@ -32,7 +34,32 @@ Cart::applyVoucher('SUMMER2024', 50);
 
 Lower order = applied earlier in the calculation chain.
 
+### Via ApplyVoucherToCart Action
+
+```php
+use AIArmada\Vouchers\Actions\ApplyVoucherToCart;
+use AIArmada\Cart\Facades\Cart;
+use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
+
+try {
+    $condition = ApplyVoucherToCart::run(
+        cart: Cart::session($sessionKey),
+        code: 'SUMMER2024',
+    );
+
+    // $condition is a VoucherCondition with full access to
+    // discount calculation, targeting, and stacking state
+    $calculatedValue = $condition->getCalculatedValue($subtotal);
+} catch (InvalidVoucherException $e) {
+    // Voucher was rejected by validation or stacking policy
+}
+```
+
+The Action is the canonical entrypoint. It delegates to `ValidateVoucherCode::run()` for eligibility, runs the `StackingEngine` to enforce stacking policy, and auto-replaces conflicting vouchers when `replace_when_max_reached` is enabled.
+
 ## Removing Vouchers
+
+### Via Cart Facade
 
 ```php
 // Remove specific voucher
@@ -41,6 +68,20 @@ Cart::removeVoucher('SUMMER2024');
 // Remove all vouchers
 Cart::clearVouchers();
 ```
+
+### Via RemoveVoucherFromCart Action
+
+```php
+use AIArmada\Vouchers\Actions\RemoveVoucherFromCart;
+use AIArmada\Cart\Facades\Cart;
+
+RemoveVoucherFromCart::run(
+    cart: Cart::session($sessionKey),
+    code: 'SUMMER2024',
+);
+```
+
+The Action handles dynamic and static conditions and dispatches `VoucherRemoved` automatically.
 
 ## Checking Vouchers
 

@@ -72,6 +72,50 @@ These keys control how many vouchers can be attached to a cart and where voucher
 
 `stacking.mode` is the main operator-facing switch. The package also ships default guardrails for count, max discount percentage, and per-type restrictions.
 
+## StackingRuleRegistry
+
+The `StackingRuleRegistry` manages the lifecycle of stacking rules at runtime. Rules are keyed by `StackingRuleType` and implement `StackingRuleInterface`.
+
+### Default Registered Rules
+
+The service provider auto-registers these rules from `stacking.rules`:
+
+| Type key | Class | Purpose |
+|----------|-------|---------|
+| `max_vouchers` | `MaxVouchersRule` | Limits total vouchers per cart |
+| `max_discount_percentage` | `MaxDiscountPercentageRule` | Caps combined discount % |
+| `type_restriction` | `TypeRestrictionRule` | Limits per-type counts |
+| `value_threshold` | `ValueThresholdRule` | Requires minimum value |
+| `mutual_exclusion` | `MutualExclusionRule` | Prevents incompatible pairs |
+| `category_exclusion` | `CategoryExclusionRule` | Excludes product categories |
+| `campaign_exclusion` | `CampaignExclusionRule` | Excludes campaign groups |
+
+### Registering Custom Rules
+
+```php
+use AIArmada\Vouchers\Stacking\StackingRuleRegistry;
+use AIArmada\Vouchers\Stacking\Contracts\StackingRuleInterface;
+
+class MyCustomRule implements StackingRuleInterface
+{
+    public function getType(): string
+    {
+        return 'my_custom';
+    }
+
+    public function evaluate(StackingContext $context): StackingDecision
+    {
+        // Your logic here
+    }
+}
+
+app(StackingRuleRegistry::class)->register(new MyCustomRule());
+```
+
+### Provider Binding
+
+The registry is bound as a singleton so all stacking consumers see the same rule set. If you need to override the built-in policy, rebind the `StackingPolicyInterface` contract in your own service provider.
+
 ## Validation
 
 ```php

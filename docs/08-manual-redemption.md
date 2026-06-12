@@ -225,6 +225,26 @@ class AdminVoucherController extends Controller
 }
 ```
 
+## ValidateVoucherCode Action
+
+As an alternative to the facade `Voucher::isValid()`, use the `ValidateVoucherCode` action for programmatic validation that returns a structured result:
+
+```php
+use AIArmada\Vouchers\Actions\ValidateVoucherCode;
+use AIArmada\Cart\Facades\Cart;
+
+$result = ValidateVoucherCode::run('SUMMER2024', Cart::session($sessionKey));
+
+if ($result->isValid) {
+    // Proceed with redemption
+} else {
+    // $result->reason contains the rejection message
+    Log::info("Voucher rejected: {$result->reason}");
+}
+```
+
+The same Action is used internally by `ApplyVoucherToCart` for pre-application validation, so the eligibility logic is consistent across all entry points.
+
 ## Recording Usage Without Manual Redemption
 
 For cart-based redemptions, use `recordUsage` directly:

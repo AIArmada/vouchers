@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -22,9 +23,7 @@ return new class extends Migration
             $table->foreignUuid('voucher_id');
             $table->nullableUuidMorphs('owner');
             $table->nullableUuidMorphs('holder');
-            $table->boolean('is_claimed')->default(false);
             $table->timestampTz('claimed_at')->nullable();
-            $table->boolean('is_redeemed')->default(false);
             $table->timestampTz('redeemed_at')->nullable();
             $table->{$jsonType}('metadata')->nullable();
             $table->timestampsTz();
@@ -33,16 +32,12 @@ return new class extends Migration
             $table->index('voucher_id'); // For querying wallet entries by voucher
             // Note: nullableUuidMorphs('owner') already creates index on ['owner_type', 'owner_id']
             // Note: nullableUuidMorphs('holder') already creates index on ['holder_type', 'holder_id']
-            $table->index('is_claimed'); // For filtering claimed status
-            $table->index('is_redeemed'); // For filtering redeemed status
-            $table->index(['is_redeemed', 'is_claimed']); // For available vouchers queries
             $table->index('claimed_at'); // For sorting by claim date
             $table->index('redeemed_at'); // For sorting by redemption date
-            $table->index(['voucher_id', 'is_claimed', 'is_redeemed'], 'voucher_wallets_available_idx');
-
-            // Unique constraint: one voucher per holder (only for non-redeemed entries)
-            $table->unique(['voucher_id', 'holder_type', 'holder_id', 'is_redeemed']);
+            $table->index(['voucher_id', 'claimed_at', 'redeemed_at'], 'voucher_wallets_available_idx');
         });
+
+        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");
     }
 
     public function down(): void

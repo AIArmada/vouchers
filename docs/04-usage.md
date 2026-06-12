@@ -4,6 +4,94 @@ title: Usage
 
 # Usage
 
+## Canonical API: Actions
+
+The package exposes domain actions built with `lorisleiva/laravel-actions`. Each action is a self-contained unit with a `run()` static entrypoint.
+
+### CreateVoucher
+
+```php
+use AIArmada\Vouchers\Actions\CreateVoucher;
+use AIArmada\Vouchers\Enums\VoucherType;
+
+$voucher = CreateVoucher::run([
+    'code' => 'SUMMER2024',
+    'name' => 'Summer Sale 2024',
+    'type' => VoucherType::Percentage,
+    'value' => 2000,
+    'currency' => 'MYR',
+    'starts_at' => now(),
+    'expires_at' => now()->addMonths(3),
+]);
+```
+
+### UpdateVoucher
+
+```php
+use AIArmada\Vouchers\Actions\UpdateVoucher;
+
+$voucher = UpdateVoucher::run('SUMMER2024', [
+    'name' => 'Updated Summer Sale',
+    'value' => 2500,
+    'expires_at' => now()->addMonths(6),
+]);
+```
+
+### ExpireVoucher
+
+```php
+use AIArmada\Vouchers\Actions\ExpireVoucher;
+
+ExpireVoucher::run('SUMMER2024');
+```
+
+### ApplyVoucherToCart
+
+```php
+use AIArmada\Vouchers\Actions\ApplyVoucherToCart;
+use AIArmada\Cart\Facades\Cart;
+
+$condition = ApplyVoucherToCart::run(Cart::session($sessionKey), 'SUMMER2024');
+```
+
+### RemoveVoucherFromCart
+
+```php
+use AIArmada\Vouchers\Actions\RemoveVoucherFromCart;
+use AIArmada\Cart\Facades\Cart;
+
+RemoveVoucherFromCart::run(Cart::session($sessionKey), 'SUMMER2024');
+```
+
+### RecordVoucherUsage
+
+```php
+use AIArmada\Vouchers\Actions\RecordVoucherUsage;
+use Akaunting\Money\Money;
+
+$usage = RecordVoucherUsage::run(
+    code: 'SUMMER2024',
+    discountAmount: Money::MYR(2500),
+    channel: 'web',
+    metadata: ['order_id' => $order->id],
+    redeemedBy: auth()->user(),
+);
+```
+
+### ValidateVoucherCode
+
+```php
+use AIArmada\Vouchers\Actions\ValidateVoucherCode;
+
+$result = ValidateVoucherCode::run('SUMMER2024', $cart);
+
+if ($result->isValid) {
+    // Voucher can be applied
+} else {
+    echo $result->reason;
+}
+```
+
 ## Creating vouchers
 
 Use the `Voucher` facade to create vouchers:

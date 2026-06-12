@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use AIArmada\CommerceSupport\Support\ConnectionDriver;
+use AIArmada\Vouchers\States\Active;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +47,7 @@ return new class extends Migration
             // Validity period
             $table->timestampTz('starts_at')->nullable();
             $table->timestampTz('expires_at')->nullable();
-            $table->string('status')->default('active'); // active, paused, expired, depleted
+            $table->string('status')->default(Active::class); // active, paused, expired, depleted
 
             // Metadata
             $table->{$jsonType}('target_definition')->nullable();
@@ -56,6 +57,9 @@ return new class extends Migration
             $table->integer('stacking_priority')->default(100);
             $table->foreignUuid('promotion_id')->nullable();
             $table->foreignUuid('affiliate_id')->nullable();
+            $table->timestampTz('paused_at')->nullable();
+            $table->timestampTz('depleted_at')->nullable();
+            $table->timestampTz('last_activated_at')->nullable();
 
             $table->timestampsTz();
 
@@ -71,6 +75,9 @@ return new class extends Migration
             $table->index('stacking_priority');
             $table->index('promotion_id');
             $table->index('affiliate_id');
+            $table->index('paused_at');
+            $table->index('depleted_at');
+            $table->index('last_activated_at');
         });
 
         // Optional: create GIN indexes when using jsonb on PostgreSQL

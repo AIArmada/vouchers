@@ -246,6 +246,95 @@ class VoucherDashboardController extends Controller
 }
 ```
 
+## RecordVoucherUsage Action
+
+The `RecordVoucherUsage` action is the canonical way to persist a voucher redemption. It handles limit checking, state transitions (marks voucher as `Depleted` when the global limit is reached), and dispatches `VoucherUsageRecorded`.
+
+```php
+use AIArmada\Vouchers\Actions\RecordVoucherUsage;
+use Akaunting\Money\Money;
+
+$usage = RecordVoucherUsage::run(
+    code: 'SUMMER2024',
+    discountAmount: Money::MYR(2500),
+    channel: 'web',
+    metadata: [
+        'order_id' => $order->id,
+        'order_number' => $order->number,
+    ],
+    redeemedBy: $order,
+    notes: 'Checkout redemption',
+);
+```
+
+The returned `VoucherUsage` model includes the voucher, discount details, and redeemer reference.
+
+## Usage Events
+
+All usage-related events extend a common `HasVoucherEventData` concern, giving each event access to `VoucherData` for the affected voucher.
+
+### VoucherUsageRecorded
+
+Dispatched by `RecordVoucherUsage::run()` after a usage record is persisted.
+
+```php
+use AIArmada\Vouchers\Events\VoucherUsageRecorded;
+
+Event::listen(VoucherUsageRecorded::class, function ($event) {
+    $voucherData = $event->voucherData;  // VoucherData DTO
+    $usage = $event->usage;              // VoucherUsage model
+
+    Analytics::track('voucher_redeemed', [
+        'voucher_code' => $voucherData->code,
+        'discount' => $usage->discount_amount,
+        'currency' => $usage->currency,
+        'channel' => $usage->channel,
+    ]);
+});
+```
+
+### VoucherExpired
+
+Dispatched by `ExpireVoucher::run()`.
+
+```php
+use AIArmada\Vouchers\Events\VoucherExpired;
+
+Event::listen(VoucherExpired::class, function ($event) {
+    $voucherData = $event->voucherData;
+
+    Log::info("Voucher {$voucherData->code} has expired");
+});
+```
+
+### VoucherRefilled
+
+Dispatched when a depleted voucher's usage count is reset or its usage limit is increased.
+
+```php
+use AIArmada\Vouchers\Events\VoucherRefilled;
+
+Event::listen(VoucherRefilled::class, function ($event) {
+    $voucherData = $event->voucherData;
+
+    Log::info("Voucher {$voucherData->code} has been refilled");
+});
+```
+
+### VoucherCreated
+
+Dispatched by `CreateVoucher::run()` after successful creation.
+
+```php
+use AIArmada\Vouchers\Events\VoucherCreated;
+
+Event::listen(VoucherCreated::class, function ($event) {
+    $voucherData = $event->voucherData;
+
+    Log::info("New voucher created: {$voucherData->code}");
+});
+```
+
 ## Events for Analytics
 
 Listen to voucher events for real-time analytics:
