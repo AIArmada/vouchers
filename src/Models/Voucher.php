@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\Affiliates\Enums\CommissionType;
 use AIArmada\Affiliates\Models\Affiliate;
+use AIArmada\Affiliates\Models\AffiliateProgram;
 use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
 use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Support\MoneyFormatter;
@@ -15,6 +17,7 @@ use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
 use AIArmada\Vouchers\States\Paused;
 use AIArmada\Vouchers\States\VoucherStatus;
+use BackedEnum;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -59,6 +62,10 @@ use Spatie\ModelStates\HasStates;
  * @property int $stacking_priority
  * @property string|null $promotion_id
  * @property string|null $affiliate_id
+ * @property string|null $affiliate_program_id
+ * @property CommissionType|null $affiliate_commission_type
+ * @property int|null $affiliate_commission_value
+ * @property array<array{level:int, share:float}>|null $affiliate_upline_levels
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read int $times_used
@@ -71,6 +78,7 @@ use Spatie\ModelStates\HasStates;
  * @property-read int $wallet_redeemed_count
  * @property-read int $wallet_available_count
  * @property-read Affiliate|null $affiliate
+ * @property-read AffiliateProgram|null $affiliateProgram
  * @property-read Model|null $promotion
  */
 class Voucher extends Model implements Auditable
@@ -118,6 +126,10 @@ class Voucher extends Model implements Auditable
         'stacking_priority',
         'promotion_id',
         'affiliate_id',
+        'affiliate_program_id',
+        'affiliate_commission_type',
+        'affiliate_commission_value',
+        'affiliate_upline_levels',
     ];
 
     public function getTable(): string
@@ -182,6 +194,18 @@ class Voucher extends Model implements Auditable
         }
 
         return $this->belongsTo(Model::class, 'affiliate_id');
+    }
+
+    /**
+     * @return BelongsTo<AffiliateProgram, $this>|BelongsTo<Model, $this>
+     */
+    public function affiliateProgram(): BelongsTo
+    {
+        if (! class_exists(AffiliateProgram::class)) {
+            return $this->belongsTo(Model::class, 'affiliate_program_id');
+        }
+
+        return $this->belongsTo(AffiliateProgram::class, 'affiliate_program_id');
     }
 
     /**
@@ -495,10 +519,12 @@ class Voucher extends Model implements Auditable
 
     public function getPromotionSourceIdAttribute(): ?string
     {
-        $promotion = $this->promotion;
+        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
+            $promotion = $this->promotion;
 
-        if ($promotion !== null && $promotion->getKey() !== null) {
-            return (string) $promotion->getKey();
+            if ($promotion !== null && $promotion->getKey() !== null) {
+                return (string) $promotion->getKey();
+            }
         }
 
         return $this->normalizePromotionSourceString(
@@ -508,10 +534,12 @@ class Voucher extends Model implements Auditable
 
     public function getPromotionSourceNameAttribute(): ?string
     {
-        $promotion = $this->promotion;
+        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
+            $promotion = $this->promotion;
 
-        if ($promotion !== null) {
-            return $this->normalizePromotionSourceString($promotion->getAttribute('name'));
+            if ($promotion !== null) {
+                return $this->normalizePromotionSourceString($promotion->getAttribute('name'));
+            }
         }
 
         return $this->normalizePromotionSourceString(data_get($this->metadata, 'source_promotion_name'));
@@ -519,10 +547,12 @@ class Voucher extends Model implements Auditable
 
     public function getPromotionSourceCodeAttribute(): ?string
     {
-        $promotion = $this->promotion;
+        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
+            $promotion = $this->promotion;
 
-        if ($promotion !== null) {
-            return $this->normalizePromotionSourceString($promotion->getAttribute('code'));
+            if ($promotion !== null) {
+                return $this->normalizePromotionSourceString($promotion->getAttribute('code'));
+            }
         }
 
         return $this->normalizePromotionSourceString(data_get($this->metadata, 'source_promotion_code'));
@@ -585,37 +615,35 @@ class Voucher extends Model implements Auditable
 
     private function syncAffiliateMetadataFromAffiliateId(): void
     {
+        $metadata = is_array($this->metadata) ? $this->metadata : [];
+
         $affiliateId = $this->affiliate_id;
 
-        if (! is_string($affiliateId) || $affiliateId === '') {
-            $this->removeAffiliateMetadata();
+        if (is_string($affiliateId) && $affiliateId !== '') {
+            $metadata['affiliate_id'] = $affiliateId;
 
-            return;
-        }
+            $affiliate = $this->resolveAffiliateForMetadataSync($affiliateId);
 
-        $metadata = is_array($this->metadata) ? $this->metadata : [];
-        $metadata['affiliate_id'] = $affiliateId;
-
-        $affiliate = $this->resolveAffiliateForMetadataSync($affiliateId);
-
-        if ($affiliate instanceof Affiliate) {
-            $metadata['affiliate_code'] = (string) $affiliate->code;
+            if ($affiliate instanceof Affiliate) {
+                $metadata['affiliate_code'] = (string) $affiliate->code;
+            } else {
+                unset($metadata['affiliate_code']);
+            }
         } else {
-            unset($metadata['affiliate_code']);
+            unset(
+                $metadata['affiliate_id'],
+                $metadata['affiliate_code'],
+            );
         }
 
-        $this->metadata = $metadata;
-    }
-
-    private function removeAffiliateMetadata(): void
-    {
-        if (! is_array($this->metadata)) {
-            return;
-        }
-
-        $metadata = $this->metadata;
-
-        unset($metadata['affiliate_id'], $metadata['affiliate_code']);
+        $this->syncAffiliateMetadataValue($metadata, 'affiliate_program_id', $this->affiliate_program_id);
+        $this->syncAffiliateMetadataValue(
+            $metadata,
+            'affiliate_commission_type',
+            $this->normalizeAffiliateCommissionType($this->affiliate_commission_type)
+        );
+        $this->syncAffiliateMetadataValue($metadata, 'affiliate_commission_value', $this->affiliate_commission_value);
+        $this->syncAffiliateMetadataValue($metadata, 'affiliate_upline_levels', $this->affiliate_upline_levels);
 
         $this->metadata = $metadata !== [] ? $metadata : null;
     }
@@ -646,7 +674,7 @@ class Voucher extends Model implements Auditable
 
     protected function casts(): array
     {
-        return [
+        $casts = [
             'type' => VoucherType::class,
             'status' => VoucherStatus::class,
             'value' => 'integer', // Stored as cents or basis points
@@ -668,7 +696,15 @@ class Voucher extends Model implements Auditable
             'stacking_rules' => 'array',
             'exclusion_groups' => 'array',
             'stacking_priority' => 'integer',
+            'affiliate_commission_value' => 'integer',
+            'affiliate_upline_levels' => 'array',
         ];
+
+        if (class_exists(CommissionType::class)) {
+            $casts['affiliate_commission_type'] = CommissionType::class;
+        }
+
+        return $casts;
     }
 
     /**
@@ -703,6 +739,10 @@ class Voucher extends Model implements Auditable
             'stacking_priority',
             'promotion_id',
             'affiliate_id',
+            'affiliate_program_id',
+            'affiliate_commission_type',
+            'affiliate_commission_value',
+            'affiliate_upline_levels',
             'owner_type',
             'owner_id',
         ];
@@ -729,9 +769,39 @@ class Voucher extends Model implements Auditable
                 'status',
                 'promotion_id',
                 'affiliate_id',
+                'affiliate_program_id',
+                'affiliate_commission_type',
+                'affiliate_commission_value',
             ])
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('vouchers');
+    }
+
+    private function normalizeAffiliateCommissionType(mixed $value): ?string
+    {
+        if ($value instanceof BackedEnum) {
+            return $value->value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function syncAffiliateMetadataValue(array &$metadata, string $key, mixed $value): void
+    {
+        if ($value === null || $value === []) {
+            unset($metadata[$key]);
+
+            return;
+        }
+
+        $metadata[$key] = $value;
     }
 }

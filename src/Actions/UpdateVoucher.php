@@ -6,6 +6,7 @@ namespace AIArmada\Vouchers\Actions;
 
 use AIArmada\Vouchers\Concerns\NormalizesVoucherCodes;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
+use AIArmada\Vouchers\Support\VoucherAffiliateOwnershipGuard;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 final class UpdateVoucher
@@ -27,6 +28,8 @@ final class UpdateVoucher
         if (isset($data['code'])) {
             $data['code'] = $this->normalizeCode((string) $data['code']);
         }
+
+        $data = VoucherAffiliateOwnershipGuard::sanitize($data);
 
         $voucher->update($data);
 

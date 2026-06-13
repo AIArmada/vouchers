@@ -10,6 +10,7 @@ use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\VoucherStatus;
 use Akaunting\Money\Money;
+use BackedEnum;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Spatie\LaravelData\Attributes\MapInputName;
@@ -37,6 +38,10 @@ class VoucherData extends Data
      * @param  int|null  $maxDiscount  Maximum discount in cents
      * @param  array<string, mixed>|null  $targetDefinition  Target definition for condition application
      * @param  array<string, mixed>|null  $metadata  Additional metadata
+     * @param  string|null  $affiliateCommissionType  Override commission type (percentage|fixed)
+     * @param  int|null  $affiliateCommissionValue  Override commission rate (basis points or cents)
+     * @param  string|null  $affiliateProgramId  Associated affiliate program ID
+     * @param  array<array{level:int, share:float}>|null  $affiliateUplineLevels  Upline override levels
      */
     public function __construct(
         public readonly string $id,
@@ -64,6 +69,10 @@ class VoucherData extends Data
         public readonly ?array $targetDefinition,
         public readonly ?array $metadata,
         public readonly ?string $promotionId = null,
+        public readonly ?string $affiliateCommissionType = null,
+        public readonly ?int $affiliateCommissionValue = null,
+        public readonly ?string $affiliateProgramId = null,
+        public readonly ?array $affiliateUplineLevels = null,
     ) {}
 
     /**
@@ -107,6 +116,10 @@ class VoucherData extends Data
             targetDefinition: $voucher->target_definition,
             metadata: $voucher->metadata,
             promotionId: $voucher->promotion_id,
+            affiliateCommissionType: self::normalizeAffiliateCommissionType($voucher->affiliate_commission_type),
+            affiliateCommissionValue: $voucher->affiliate_commission_value,
+            affiliateProgramId: $voucher->affiliate_program_id,
+            affiliateUplineLevels: $voucher->affiliate_upline_levels,
         );
     }
 
@@ -184,6 +197,12 @@ class VoucherData extends Data
             targetDefinition: $data['target_definition'] ?? $data['targetDefinition'] ?? null,
             metadata: $data['metadata'] ?? null,
             promotionId: $data['promotion_id'] ?? $data['promotionId'] ?? null,
+            affiliateCommissionType: self::normalizeAffiliateCommissionType(
+                $data['affiliate_commission_type'] ?? $data['affiliateCommissionType'] ?? null
+            ),
+            affiliateCommissionValue: $data['affiliate_commission_value'] ?? $data['affiliateCommissionValue'] ?? null,
+            affiliateProgramId: $data['affiliate_program_id'] ?? $data['affiliateProgramId'] ?? null,
+            affiliateUplineLevels: $data['affiliate_upline_levels'] ?? $data['affiliateUplineLevels'] ?? null,
         );
     }
 
@@ -315,5 +334,18 @@ class VoucherData extends Data
         if (is_float($value) && $value !== floor($value)) {
             throw InvalidVoucherDataException::floatNotAllowed($field, $value, $description);
         }
+    }
+
+    private static function normalizeAffiliateCommissionType(mixed $value): ?string
+    {
+        if ($value instanceof BackedEnum) {
+            return $value->value;
+        }
+
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        return null;
     }
 }

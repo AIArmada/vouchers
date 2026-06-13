@@ -10,6 +10,7 @@ use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Events\VoucherCreated;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\States\Active;
+use AIArmada\Vouchers\Support\VoucherAffiliateOwnershipGuard;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Lorisleiva\Actions\Concerns\AsAction;
@@ -58,7 +59,13 @@ final class CreateVoucher
                 'allows_manual_redemption' => $data['allows_manual_redemption'] ?? false,
                 'promotion_id' => $data['promotion_id'] ?? $data['promotionId'] ?? null,
                 'affiliate_id' => $data['affiliate_id'] ?? $data['affiliateId'] ?? null,
+                'affiliate_program_id' => $data['affiliate_program_id'] ?? $data['affiliateProgramId'] ?? null,
+                'affiliate_commission_type' => $data['affiliate_commission_type'] ?? $data['affiliateCommissionType'] ?? null,
+                'affiliate_commission_value' => $data['affiliate_commission_value'] ?? $data['affiliateCommissionValue'] ?? null,
+                'affiliate_upline_levels' => $data['affiliate_upline_levels'] ?? $data['affiliateUplineLevels'] ?? null,
             ];
+
+            $createData = VoucherAffiliateOwnershipGuard::sanitize($createData);
 
             // Handle owner assignment
             if (

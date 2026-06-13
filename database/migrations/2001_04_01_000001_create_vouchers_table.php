@@ -57,6 +57,13 @@ return new class extends Migration
             $table->integer('stacking_priority')->default(100);
             $table->foreignUuid('promotion_id')->nullable();
             $table->foreignUuid('affiliate_id')->nullable();
+            $table->foreignUuid('affiliate_program_id')->nullable();
+
+            // Affiliate commission override
+            $table->string('affiliate_commission_type')->nullable(); // percentage, fixed, null = use default
+            $table->integer('affiliate_commission_value')->nullable(); // basis points or cents
+            $table->{$jsonType}('affiliate_upline_levels')->nullable(); // [{"level":1,"share":0.05}]
+
             $table->timestampTz('paused_at')->nullable();
             $table->timestampTz('depleted_at')->nullable();
             $table->timestampTz('last_activated_at')->nullable();
@@ -75,6 +82,7 @@ return new class extends Migration
             $table->index('stacking_priority');
             $table->index('promotion_id');
             $table->index('affiliate_id');
+            $table->index('affiliate_program_id');
             $table->index('paused_at');
             $table->index('depleted_at');
             $table->index('last_activated_at');
