@@ -41,7 +41,7 @@ class VoucherData extends Data
      * @param  string|null  $affiliateCommissionType  Override commission type (percentage|fixed)
      * @param  int|null  $affiliateCommissionValue  Override commission rate (basis points or cents)
      * @param  string|null  $affiliateProgramId  Associated affiliate program ID
-     * @param  array<array{level:int, share:float}>|null  $affiliateUplineLevels  Upline override levels
+     * @param  list<array{level: int, type: string, value: int|float}>|null  $affiliateUplineLevels  Upline override levels
      */
     public function __construct(
         public readonly string $id,
