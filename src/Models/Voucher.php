@@ -137,7 +137,7 @@ class Voucher extends Model implements Auditable
         $tables = config('vouchers.database.tables', []);
         $prefix = config('vouchers.database.table_prefix', '');
 
-        return $tables['vouchers'] ?? $prefix . 'vouchers';
+        return $tables['vouchers'] ?? $prefix.'vouchers';
     }
 
     /**
@@ -434,19 +434,19 @@ class Voucher extends Model implements Auditable
             /** @var string|null $name */
             $name = $owner->getAttribute('name');
             /** @var string|null $displayName */
-            $displayName = $owner->getAttribute('display_name');
+            $displayName = $owner->hasAttribute('display_name') ? $owner->getAttribute('display_name') : null;
             /** @var string|null $email */
             $email = $owner->getAttribute('email');
             /** @var int|string $key */
             $key = $owner->getKey();
 
-            return $name ?? $displayName ?? $email ?? class_basename($owner) . ':' . (string) $key;
+            return $name ?? $displayName ?? $email ?? class_basename($owner).':'.(string) $key;
         }
 
         /** @var int|string $key */
         $key = $owner->getKey();
 
-        return class_basename($owner) . ':' . (string) $key;
+        return class_basename($owner).':'.(string) $key;
     }
 
     public function getRemainingUsesAttribute(): ?int
@@ -468,7 +468,7 @@ class Voucher extends Model implements Auditable
             // Value is stored in basis points (e.g., 1000 = 10.00%, 1259 = 12.59%)
             $percentage = $value / 100;
 
-            return mb_rtrim(mb_rtrim(number_format($percentage, 2), '0'), '.') . ' %';
+            return mb_rtrim(mb_rtrim(number_format($percentage, 2), '0'), '.').' %';
         }
 
         // Value is stored as cents
@@ -564,7 +564,7 @@ class Voucher extends Model implements Auditable
         $code = $this->promotion_source_code;
 
         if ($name !== null && $code !== null) {
-            return $name . ' (' . $code . ')';
+            return $name.' ('.$code.')';
         }
 
         return $name ?? $code;
