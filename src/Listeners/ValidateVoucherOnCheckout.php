@@ -7,6 +7,7 @@ namespace AIArmada\Vouchers\Listeners;
 use AIArmada\Cart\Cart;
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Vouchers\Exceptions\VoucherValidationException;
+use AIArmada\Vouchers\Support\VoucherCartMetadata;
 
 /**
  * Validates vouchers when checkout is initiated.
@@ -17,8 +18,6 @@ use AIArmada\Vouchers\Exceptions\VoucherValidationException;
  */
 class ValidateVoucherOnCheckout
 {
-    private const string VOUCHER_METADATA_KEY = 'voucher_codes';
-
     /**
      * Handle the checkout started event.
      *
@@ -38,7 +37,7 @@ class ValidateVoucherOnCheckout
         }
 
         /** @var array<string> $voucherCodes */
-        $voucherCodes = $cart->getMetadata(self::VOUCHER_METADATA_KEY, []);
+        $voucherCodes = $cart->getMetadata(VoucherCartMetadata::VOUCHER_CODES, []);
 
         if (empty($voucherCodes)) {
             return;
@@ -59,7 +58,7 @@ class ValidateVoucherOnCheckout
 
         // Update cart metadata with only valid vouchers
         if (count($invalidCodes) > 0) {
-            $cart->setMetadata(self::VOUCHER_METADATA_KEY, $validCodes);
+            $cart->setMetadata(VoucherCartMetadata::VOUCHER_CODES, $validCodes);
 
             // Optionally block checkout on invalid vouchers
             if (config('vouchers.checkout.block_on_invalid', false)) {

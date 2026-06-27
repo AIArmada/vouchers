@@ -13,6 +13,7 @@ use AIArmada\Cart\Contracts\ConditionProviderInterface;
 use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Enums\VoucherType;
 use AIArmada\Vouchers\Services\VoucherService;
+use AIArmada\Vouchers\Support\VoucherCartMetadata;
 
 /**
  * Provides voucher-based cart conditions.
@@ -22,8 +23,6 @@ use AIArmada\Vouchers\Services\VoucherService;
  */
 final readonly class VoucherConditionProvider implements ConditionProviderInterface
 {
-    private const string VOUCHER_METADATA_KEY = 'voucher_codes';
-
     private const string CONDITION_TYPE = 'voucher';
 
     private const int PRIORITY = 100;
@@ -45,7 +44,7 @@ final readonly class VoucherConditionProvider implements ConditionProviderInterf
         $conditions = [];
 
         /** @var array<string> $voucherCodes */
-        $voucherCodes = $cart->getMetadata(self::VOUCHER_METADATA_KEY, []);
+        $voucherCodes = $cart->getMetadata(VoucherCartMetadata::VOUCHER_CODES, []);
 
         if (empty($voucherCodes)) {
             return [];

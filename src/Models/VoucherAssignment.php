@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Models;
 
+use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
+use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use OwenIt\Auditing\Contracts\Auditable;
 
 /**
  * @property string $id
@@ -25,9 +28,11 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
  * @property-read Voucher $voucher
  * @property-read Model $assignee
  */
-final class VoucherAssignment extends Model
+final class VoucherAssignment extends Model implements Auditable
 {
+    use HasCommerceAudit;
     use HasUuids;
+    use LogsCommerceActivity;
 
     protected $fillable = [
         'voucher_id',
