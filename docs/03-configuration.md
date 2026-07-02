@@ -11,7 +11,7 @@ Configuration lives in `config/vouchers.php`.
 ```php
 'database' => [
     'table_prefix' => env('VOUCHERS_TABLE_PREFIX', env('COMMERCE_TABLE_PREFIX', '')),
-    'json_column_type' => env('VOUCHERS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'json')),
+    'json_column_type' => env('VOUCHERS_JSON_COLUMN_TYPE', env('COMMERCE_JSON_COLUMN_TYPE', 'jsonb')),
     'tables' => [
         'vouchers' => 'vouchers',
         'voucher_usage' => 'voucher_usage',
