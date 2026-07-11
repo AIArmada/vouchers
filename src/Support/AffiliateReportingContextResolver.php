@@ -361,11 +361,7 @@ final class AffiliateReportingContextResolver
 
         if ($orderReference !== null) {
             return $query
-                ->where(function (Builder $builder) use ($orderReference): void {
-                    $builder
-                        ->whereRaw('LOWER(order_reference) = ?', [$orderReference])
-                        ->orWhereRaw('LOWER(external_reference) = ?', [$orderReference]);
-                })
+                ->whereRaw('LOWER(external_reference) = ?', [$orderReference])
                 ->first();
         }
 
