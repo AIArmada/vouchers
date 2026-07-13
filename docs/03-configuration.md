@@ -71,9 +71,7 @@ These keys control how many vouchers can be attached to a cart and where voucher
 
 `stacking.mode` is the main operator-facing switch. The package also ships default guardrails for count, max discount percentage, and per-type restrictions.
 
-## StackingRuleRegistry
 
-The `StackingRuleRegistry` manages the lifecycle of stacking rules at runtime. Rules are keyed by `StackingRuleType` and implement `StackingRuleInterface`.
 
 ### Default Registered Rules
 
@@ -92,7 +90,6 @@ The service provider auto-registers these rules from `stacking.rules`:
 ### Registering Custom Rules
 
 ```php
-use AIArmada\Vouchers\Stacking\StackingRuleRegistry;
 use AIArmada\Vouchers\Stacking\Contracts\StackingRuleInterface;
 
 class MyCustomRule implements StackingRuleInterface
@@ -108,7 +105,6 @@ class MyCustomRule implements StackingRuleInterface
     }
 }
 
-app(StackingRuleRegistry::class)->register(new MyCustomRule());
 ```
 
 ### Provider Binding

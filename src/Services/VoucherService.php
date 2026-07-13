@@ -309,8 +309,10 @@ class VoucherService implements VoucherServiceInterface
 
     /**
      * Release a voucher reservation.
+     *
+     * @param  string|null  $sessionId  When provided, only releases that session's reservation
      */
-    public function release(string $code): void
+    public function release(string $code, ?string $sessionId = null): void
     {
         $voucher = $this->voucherQuery()
             ->where('code', $this->normalizeCode($code))
@@ -321,12 +323,36 @@ class VoucherService implements VoucherServiceInterface
         }
 
         $sessionsKey = $this->reservationSessionsCacheKey((string) $voucher->id);
+
+        if ($sessionId !== null) {
+            Cache::forget($this->reservationCacheKey((string) $voucher->id, $sessionId));
+
+            $sessionIds = Cache::get($sessionsKey, []);
+
+            if (is_array($sessionIds)) {
+                $sessionIds = array_values(array_filter(
+                    $sessionIds,
+                    fn (mixed $sid): bool => ! (is_string($sid) && $sid === $sessionId),
+                ));
+
+                $ttl = config('vouchers.reservation.ttl', 900);
+
+                if ($sessionIds === []) {
+                    Cache::forget($sessionsKey);
+                } else {
+                    Cache::put($sessionsKey, $sessionIds, $ttl);
+                }
+            }
+
+            return;
+        }
+
         $sessionIds = Cache::get($sessionsKey, []);
 
         if (is_array($sessionIds)) {
-            foreach ($sessionIds as $sessionId) {
-                if (is_string($sessionId) && $sessionId !== '') {
-                    Cache::forget($this->reservationCacheKey((string) $voucher->id, $sessionId));
+            foreach ($sessionIds as $sid) {
+                if (is_string($sid) && $sid !== '') {
+                    Cache::forget($this->reservationCacheKey((string) $voucher->id, $sid));
                 }
             }
         }

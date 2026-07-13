@@ -55,7 +55,7 @@ try {
 }
 ```
 
-The Action is the canonical entrypoint. It delegates to `ValidateVoucherCode::run()` for eligibility, runs the `StackingEngine` to enforce stacking policy, and auto-replaces conflicting vouchers when `replace_when_max_reached` is enabled.
+The Action is the canonical entrypoint. It delegates to `ValidateVoucherCode::run()` for eligibility, runs the `StackingPolicy` to enforce stacking policy, and auto-replaces conflicting vouchers when `replace_when_max_reached` is enabled.
 
 ## Removing Vouchers
 

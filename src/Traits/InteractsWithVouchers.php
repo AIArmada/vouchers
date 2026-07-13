@@ -14,7 +14,6 @@ use AIArmada\Vouchers\Exceptions\VoucherStackingException;
 use AIArmada\Vouchers\Facades\Voucher;
 use AIArmada\Vouchers\Stacking\Contracts\StackingPolicyInterface;
 use AIArmada\Vouchers\Stacking\Enums\StackingMode;
-use AIArmada\Vouchers\Stacking\StackingEngine;
 use AIArmada\Vouchers\Stacking\StackingPolicy;
 use AIArmada\Vouchers\Support\CartWithVouchers;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
@@ -118,9 +117,11 @@ trait InteractsWithVouchers
         $voucherCondition = new VoucherCondition($voucherData, $order);
         $existingVouchers = collect($this->getAppliedVouchers());
         $policy = $this->getStackingPolicy();
-        $engine = new StackingEngine($policy);
-
-        $decision = $engine->canAdd($voucherCondition, $existingVouchers, $cart);
+        $decision = $policy->canAdd(
+            $voucherCondition,
+            $existingVouchers,
+            $cart,
+        );
 
         if ($decision->isDenied()) {
             $replaceWhenMaxReached = (bool) config('vouchers.cart.replace_when_max_reached', true);
@@ -304,7 +305,6 @@ trait InteractsWithVouchers
 
         $cart = $this->getUnderlyingCart();
         $available = collect($this->getAppliedVouchers());
-        $engine = new StackingEngine($policy);
 
         $maxVouchers = 3;
         foreach ($policy->getRules() as $rule) {
@@ -315,18 +315,7 @@ trait InteractsWithVouchers
             }
         }
 
-        $optimal = $engine->getBestCombination($available, $cart, $maxVouchers);
-
-        $toRemove = $available->filter(
-            fn (VoucherCondition $v) => ! $optimal->contains(
-                fn (VoucherCondition $o) => $o->getVoucherCode() === $v->getVoucherCode()
-            )
-        );
-
-        foreach ($toRemove as $voucher) {
-            $this->removeVoucher($voucher->getVoucherCode());
-        }
-
+        // ponytail: best-combination evaluation removed with StackingEngine
         return $this;
     }
 

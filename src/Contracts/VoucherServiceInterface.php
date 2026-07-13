@@ -109,8 +109,10 @@ interface VoucherServiceInterface
 
     /**
      * Release a voucher reservation.
+     *
+     * @param  string|null  $sessionId  When provided, only releases that session's reservation
      */
-    public function release(string $code): void;
+    public function release(string $code, ?string $sessionId = null): void;
 
     /**
      * Redeem a voucher after successful order.

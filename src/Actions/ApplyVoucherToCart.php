@@ -12,7 +12,6 @@ use AIArmada\Vouchers\Events\VoucherApplied;
 use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
 use AIArmada\Vouchers\Services\VoucherService;
 use AIArmada\Vouchers\Stacking\Contracts\StackingPolicyInterface;
-use AIArmada\Vouchers\Stacking\StackingEngine;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
 use Lorisleiva\Actions\Concerns\AsAction;
 use Throwable;
@@ -57,9 +56,11 @@ final class ApplyVoucherToCart
         $existingVouchers = collect($this->getAppliedVoucherConditions($cart));
 
         $policy ??= app(StackingPolicyInterface::class);
-        $engine = new StackingEngine($policy);
-
-        $decision = $engine->canAdd($voucherCondition, $existingVouchers, $cart);
+        $decision = $policy->canAdd(
+            $voucherCondition,
+            $existingVouchers,
+            $cart,
+        );
 
         if ($decision->isDenied()) {
             $replaceWhenMaxReached = (bool) config('vouchers.cart.replace_when_max_reached', true);

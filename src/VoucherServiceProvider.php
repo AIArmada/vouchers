@@ -17,16 +17,6 @@ use AIArmada\Vouchers\Events\VoucherApplied;
 use AIArmada\Vouchers\Facades\Voucher;
 use AIArmada\Vouchers\Listeners\IncrementVoucherAppliedCount;
 use AIArmada\Vouchers\Services\VoucherService;
-use AIArmada\Vouchers\Services\VoucherValidator;
-use AIArmada\Vouchers\Stacking\Rules\CampaignExclusionRule;
-use AIArmada\Vouchers\Stacking\Rules\CategoryExclusionRule;
-use AIArmada\Vouchers\Stacking\Rules\MaxDiscountPercentageRule;
-use AIArmada\Vouchers\Stacking\Rules\MaxDiscountRule;
-use AIArmada\Vouchers\Stacking\Rules\MaxVouchersRule;
-use AIArmada\Vouchers\Stacking\Rules\MutualExclusionRule;
-use AIArmada\Vouchers\Stacking\Rules\TypeRestrictionRule;
-use AIArmada\Vouchers\Stacking\Rules\ValueThresholdRule;
-use AIArmada\Vouchers\Stacking\StackingRuleRegistry;
 use AIArmada\Vouchers\Support\AffiliateIntegrationRegistrar;
 use AIArmada\Vouchers\Support\CartManagerWithVouchers;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
@@ -103,26 +93,6 @@ final class VoucherServiceProvider extends PackageServiceProvider
         });
 
         $this->app->bind('voucher', VoucherService::class);
-
-        $this->registerStackingRuleRegistry();
-    }
-
-    private function registerStackingRuleRegistry(): void
-    {
-        $this->app->singleton(StackingRuleRegistry::class, function (): StackingRuleRegistry {
-            $registry = new StackingRuleRegistry;
-
-            $registry->register(new MaxVouchersRule);
-            $registry->register(new MaxDiscountRule);
-            $registry->register(new MaxDiscountPercentageRule);
-            $registry->register(new MutualExclusionRule);
-            $registry->register(new TypeRestrictionRule);
-            $registry->register(new CategoryExclusionRule);
-            $registry->register(new CampaignExclusionRule);
-            $registry->register(new ValueThresholdRule);
-
-            return $registry;
-        });
     }
 
     public function packageBooted(): void

@@ -119,9 +119,16 @@ class StackingPolicy implements StackingPolicyInterface
             );
         }
 
-        $engine = $this->getEngine();
+        $maxVouchers = $this->getMaxVouchers();
 
-        return $engine->canAdd($newVoucher, $existingVouchers, $cart);
+        if ($maxVouchers > 0 && $existingVouchers->count() >= $maxVouchers) {
+            return StackingDecision::deny(
+                reason: "Maximum of {$maxVouchers} vouchers reached",
+                conflictsWith: $existingVouchers->first()
+            );
+        }
+
+        return StackingDecision::allow();
     }
 
     public function resolveConflict(
@@ -138,7 +145,8 @@ class StackingPolicy implements StackingPolicyInterface
             return $vouchers;
         }
 
-        return $this->getEngine()->getBestCombination($vouchers, $cart, $maxVouchers);
+        // ponytail: best-combination removed with StackingEngine; return first N
+        return $vouchers->take($maxVouchers > 0 ? $maxVouchers : $vouchers->count())->values();
     }
 
     public function getApplicationOrder(
@@ -216,11 +224,6 @@ class StackingPolicy implements StackingPolicyInterface
         $this->autoReplace = $enabled;
 
         return $this;
-    }
-
-    private function getEngine(): StackingEngine
-    {
-        return new StackingEngine($this);
     }
 
     private function getMaxVouchers(): int
