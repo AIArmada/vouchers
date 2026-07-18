@@ -17,7 +17,6 @@ use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
 use AIArmada\Vouchers\States\Paused;
 use AIArmada\Vouchers\States\VoucherStatus;
-use BackedEnum;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -584,8 +583,6 @@ class Voucher extends Model implements Auditable
     protected static function booted(): void
     {
         self::saving(function (Voucher $voucher): void {
-            $voucher->syncAffiliateMetadataFromAffiliateId();
-
             if ($voucher->isDirty('status')) {
                 $originalStatus = $voucher->getOriginal('status');
 
@@ -611,65 +608,6 @@ class Voucher extends Model implements Auditable
             $voucher->walletEntries()->delete();
             $voucher->transactions()->delete();
         });
-    }
-
-    private function syncAffiliateMetadataFromAffiliateId(): void
-    {
-        $metadata = is_array($this->metadata) ? $this->metadata : [];
-
-        $affiliateId = $this->affiliate_id;
-
-        if (is_string($affiliateId) && $affiliateId !== '') {
-            $metadata['affiliate_id'] = $affiliateId;
-
-            $affiliate = $this->resolveAffiliateForMetadataSync($affiliateId);
-
-            if ($affiliate instanceof Affiliate) {
-                $metadata['affiliate_code'] = (string) $affiliate->code;
-            } else {
-                unset($metadata['affiliate_code']);
-            }
-        } else {
-            unset(
-                $metadata['affiliate_id'],
-                $metadata['affiliate_code'],
-            );
-        }
-
-        $this->syncAffiliateMetadataValue($metadata, 'affiliate_program_id', $this->affiliate_program_id);
-        $this->syncAffiliateMetadataValue(
-            $metadata,
-            'affiliate_commission_type',
-            $this->normalizeAffiliateCommissionType($this->affiliate_commission_type)
-        );
-        $this->syncAffiliateMetadataValue($metadata, 'affiliate_commission_value', $this->affiliate_commission_value);
-        $this->syncAffiliateMetadataValue($metadata, 'affiliate_upline_levels', $this->affiliate_upline_levels);
-
-        $this->metadata = $metadata !== [] ? $metadata : null;
-    }
-
-    private function resolveAffiliateForMetadataSync(string $affiliateId): ?Affiliate
-    {
-        if (! class_exists(Affiliate::class)) {
-            return null;
-        }
-
-        $query = Affiliate::query()->whereKey($affiliateId);
-
-        if (
-            is_string($this->owner_type)
-            && $this->owner_type !== ''
-            && $this->owner_id !== null
-            && $this->owner_id !== ''
-        ) {
-            $query
-                ->where('owner_type', $this->owner_type)
-                ->where('owner_id', $this->owner_id);
-        }
-
-        $affiliate = $query->first();
-
-        return $affiliate instanceof Affiliate ? $affiliate : null;
     }
 
     protected function casts(): array
@@ -776,32 +714,5 @@ class Voucher extends Model implements Auditable
             ->logOnlyDirty()
             ->dontLogEmptyChanges()
             ->useLogName('vouchers');
-    }
-
-    private function normalizeAffiliateCommissionType(mixed $value): ?string
-    {
-        if ($value instanceof BackedEnum) {
-            return $value->value;
-        }
-
-        if (is_string($value) && $value !== '') {
-            return $value;
-        }
-
-        return null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $metadata
-     */
-    private function syncAffiliateMetadataValue(array &$metadata, string $key, mixed $value): void
-    {
-        if ($value === null || $value === []) {
-            unset($metadata[$key]);
-
-            return;
-        }
-
-        $metadata[$key] = $value;
     }
 }

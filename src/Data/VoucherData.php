@@ -40,6 +40,7 @@ class VoucherData extends Data
      * @param  array<string, mixed>|null  $metadata  Additional metadata
      * @param  string|null  $affiliateCommissionType  Override commission type (percentage|fixed)
      * @param  int|null  $affiliateCommissionValue  Override commission rate (basis points or cents)
+     * @param  string|null  $affiliateId  Native affiliate linked to the voucher
      * @param  string|null  $affiliateProgramId  Associated affiliate program ID
      * @param  list<array{level: int, type: string, value: int|float}>|null  $affiliateUplineLevels  Upline override levels
      */
@@ -71,6 +72,7 @@ class VoucherData extends Data
         public readonly ?string $promotionId = null,
         public readonly ?string $affiliateCommissionType = null,
         public readonly ?int $affiliateCommissionValue = null,
+        public readonly ?string $affiliateId = null,
         public readonly ?string $affiliateProgramId = null,
         public readonly ?array $affiliateUplineLevels = null,
     ) {}
@@ -118,6 +120,7 @@ class VoucherData extends Data
             promotionId: $voucher->promotion_id,
             affiliateCommissionType: self::normalizeAffiliateCommissionType($voucher->affiliate_commission_type),
             affiliateCommissionValue: $voucher->affiliate_commission_value,
+            affiliateId: $voucher->affiliate_id,
             affiliateProgramId: $voucher->affiliate_program_id,
             affiliateUplineLevels: $voucher->affiliate_upline_levels,
         );
@@ -201,6 +204,7 @@ class VoucherData extends Data
                 $data['affiliate_commission_type'] ?? $data['affiliateCommissionType'] ?? null
             ),
             affiliateCommissionValue: $data['affiliate_commission_value'] ?? $data['affiliateCommissionValue'] ?? null,
+            affiliateId: $data['affiliate_id'] ?? $data['affiliateId'] ?? null,
             affiliateProgramId: $data['affiliate_program_id'] ?? $data['affiliateProgramId'] ?? null,
             affiliateUplineLevels: $data['affiliate_upline_levels'] ?? $data['affiliateUplineLevels'] ?? null,
         );

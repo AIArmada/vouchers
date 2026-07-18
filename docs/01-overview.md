@@ -27,7 +27,7 @@ The `aiarmada/vouchers` package owns voucher and coupon issuance, redemption rul
 - [`aiarmada/cart`](../../cart/docs/01-overview.md) — required cart condition and redemption integration surface
 - [`aiarmada/commerce-support`](../../commerce-support/docs/01-overview.md) — owner scoping and shared helpers
 - [`aiarmada/filament-vouchers`](../../filament-vouchers/docs/01-overview.md) — Filament admin resources, widgets, and config pages for vouchers
-- [`aiarmada/affiliates`](../../affiliates/docs/01-overview.md) — optional affiliate metadata attachment during voucher application
+- [`aiarmada/affiliates`](../../affiliates/docs/01-overview.md) — optional native affiliate attribution during voucher application
 
 ## Main models services or surfaces
 

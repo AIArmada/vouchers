@@ -103,8 +103,6 @@ final class AffiliateIntegrationRegistrar
             'owner_type' => $affiliate->owner_type,
             'owner_id' => $affiliate->owner_id,
             'metadata' => [
-                'affiliate_code' => $affiliate->code,
-                'affiliate_id' => $affiliate->id,
                 'auto_generated' => true,
             ],
         ]);
