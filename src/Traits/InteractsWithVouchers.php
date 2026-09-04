@@ -14,7 +14,7 @@ use AIArmada\Vouchers\Exceptions\VoucherStackingException;
 use AIArmada\Vouchers\Facades\Voucher;
 use AIArmada\Vouchers\Stacking\Contracts\StackingPolicyInterface;
 use AIArmada\Vouchers\Stacking\Enums\StackingMode;
-use AIArmada\Vouchers\Stacking\StackingPolicy;
+use AIArmada\Vouchers\Stacking\Enums\StackingRuleType;
 use AIArmada\Vouchers\Support\CartWithVouchers;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
 use Illuminate\Support\Facades\Event;
@@ -49,31 +49,7 @@ trait InteractsWithVouchers
             return $this->stackingPolicy;
         }
 
-        // Check for legacy cart config
-        $maxVouchers = (int) config('vouchers.cart.max_vouchers_per_cart', 1);
-
-        // If max vouchers is 1 or stacking is explicitly disabled (when max is also 1), use single voucher
-        if ($maxVouchers === 1) {
-            return StackingPolicy::singleVoucher();
-        }
-
-        // If max is 0, vouchers are disabled
-        if ($maxVouchers === 0) {
-            return StackingPolicy::singleVoucher();
-        }
-
-        // Build a policy from legacy cart config (max > 1 or unlimited)
-        $rules = [];
-        if ($maxVouchers > 0) {
-            $rules[] = ['type' => 'max_vouchers', 'value' => $maxVouchers];
-        }
-
-        return new StackingPolicy(
-            mode: StackingMode::Sequential,
-            rules: $rules,
-            autoOptimize: false,
-            autoReplace: (bool) config('vouchers.cart.replace_when_max_reached', true),
-        );
+        return app(StackingPolicyInterface::class);
     }
 
     /**
@@ -124,15 +100,12 @@ trait InteractsWithVouchers
         );
 
         if ($decision->isDenied()) {
-            $replaceWhenMaxReached = (bool) config('vouchers.cart.replace_when_max_reached', true);
-
-            if ($policy->isAutoReplaceEnabled() && $replaceWhenMaxReached && $decision->hasConflict()) {
+            if ($policy->isAutoReplaceEnabled() && $decision->hasConflict()) {
                 $conflicting = $decision->conflictsWith;
                 if ($conflicting !== null) {
                     $this->removeVoucher($conflicting->getVoucherCode());
                 }
             } else {
-                // Throw InvalidVoucherException for backward compatibility
                 throw new InvalidVoucherException(
                     'Cart already has the maximum number of vouchers'
                 );
@@ -291,48 +264,27 @@ trait InteractsWithVouchers
     }
 
     /**
-     * Optimize voucher combination for best value.
-     *
-     * Removes suboptimal vouchers and keeps only the best combination.
+     * Check if the cart can accept more vouchers.
      */
-    public function optimizeVouchers(): self
+    public function canAddVoucher(): bool
     {
+        $currentVoucherCount = count($this->getAppliedVouchers());
         $policy = $this->getStackingPolicy();
 
-        if (! $policy->isAutoOptimizeEnabled()) {
-            return $this;
+        if ($policy->getMode() === StackingMode::None && $currentVoucherCount > 0) {
+            return false;
         }
-
-        $cart = $this->getUnderlyingCart();
-        $available = collect($this->getAppliedVouchers());
 
         $maxVouchers = 3;
         foreach ($policy->getRules() as $rule) {
-            if (($rule['type'] ?? '') === 'max_vouchers') {
+            if (($rule['type'] ?? null) === StackingRuleType::MaxVouchers->value) {
                 $maxVouchers = (int) ($rule['value'] ?? 3);
 
                 break;
             }
         }
 
-        // ponytail: best-combination evaluation removed with StackingEngine
-        return $this;
-    }
-
-    /**
-     * Check if the cart can accept more vouchers.
-     */
-    public function canAddVoucher(): bool
-    {
-        $maxVouchers = config('vouchers.cart.max_vouchers_per_cart', 1);
-
-        if ($maxVouchers === 0) {
-            return false; // Vouchers disabled
-        }
-
-        $currentVoucherCount = count($this->getAppliedVouchers());
-
-        return $currentVoucherCount < $maxVouchers || $maxVouchers === -1;
+        return $maxVouchers < 0 || $currentVoucherCount < $maxVouchers;
     }
 
     /**

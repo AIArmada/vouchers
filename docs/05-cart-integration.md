@@ -55,7 +55,7 @@ try {
 }
 ```
 
-The Action is the canonical entrypoint. It delegates to `ValidateVoucherCode::run()` for eligibility, runs the `StackingPolicy` to enforce stacking policy, and auto-replaces conflicting vouchers when `replace_when_max_reached` is enabled.
+The Action is the canonical entrypoint. It delegates to `ValidateVoucherCode::run()` for eligibility, runs the `StackingPolicy` to enforce stacking policy, and auto-replaces conflicting vouchers when `stacking.auto_replace` is enabled.
 
 ## Removing Vouchers
 
@@ -124,8 +124,9 @@ if (Cart::canAddVoucher()) {
     // Show voucher input
 }
 
-// Get remaining slots (based on max_vouchers_per_cart config)
-$maxVouchers = config('vouchers.cart.max_vouchers_per_cart');
+// Get remaining slots from the configured stacking rule
+$maxVouchers = collect(config('vouchers.stacking.rules', []))
+    ->firstWhere('type', 'max_vouchers')['value'] ?? 3;
 $currentCount = count(Cart::getAppliedVouchers());
 $remaining = $maxVouchers - $currentCount;
 ```
@@ -152,16 +153,18 @@ if (count($removedVouchers) > 0) {
 
 ```php
 // config/vouchers.php
-'cart' => [
-    'max_vouchers_per_cart' => 3, // Allow up to 3 vouchers
-    'replace_when_max_reached' => false, // Don't replace, throw error
-    'allow_stacking' => true, // Apply sequentially
+'stacking' => [
+    'mode' => 'sequential',
+    'rules' => [
+        ['type' => 'max_vouchers', 'value' => 3],
+    ],
+    'auto_replace' => false, // Don't replace, throw error
 ],
 ```
 
 ### Stacking Behavior
 
-When `allow_stacking` is enabled, vouchers are applied sequentially:
+When `stacking.mode` is `sequential`, vouchers are applied one after another:
 
 ```php
 // Cart subtotal: RM100.00
@@ -181,7 +184,7 @@ Control when vouchers are calculated:
 
 ```php
 // config/vouchers.php
-'cart' => [
+'stacking' => [
     'condition_order' => 50, // Vouchers calculate after order 50
 ],
 ```

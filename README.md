@@ -237,21 +237,17 @@ $stats = $voucher->getStatistics();
 ],
 ```
 
-### Cart Integration
+### Stacking Policies
 
 ```php
-'cart' => [
-    // Maximum vouchers per cart (0 = disabled, -1 = unlimited)
-    'max_vouchers_per_cart' => env('VOUCHERS_MAX_PER_CART', 1),
-    
-    // Replace oldest voucher when max reached
-    'replace_when_max_reached' => env('VOUCHERS_REPLACE_WHEN_MAX_REACHED', true),
-    
-    // Condition order in calculation chain (lower = earlier)
-    'condition_order' => env('VOUCHERS_CONDITION_ORDER', 50),
-    
-    // Allow vouchers to stack sequentially
-    'allow_stacking' => env('VOUCHERS_ALLOW_STACKING', false),
+'stacking' => [
+    'mode' => env('VOUCHERS_STACKING_MODE', 'sequential'),
+    'rules' => [
+        ['type' => 'max_vouchers', 'value' => (int) env('VOUCHERS_MAX_PER_CART', 1)],
+    ],
+    'auto_optimize' => false,
+    'auto_replace' => true,
+    'condition_order' => 50,
 ],
 ```
 

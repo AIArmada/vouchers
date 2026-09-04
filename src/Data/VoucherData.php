@@ -42,7 +42,7 @@ class VoucherData extends Data
      * @param  int|null  $affiliateCommissionValue  Override commission rate (basis points or cents)
      * @param  string|null  $affiliateId  Native affiliate linked to the voucher
      * @param  string|null  $affiliateProgramId  Associated affiliate program ID
-     * @param  list<array{level: int, type: string, value: int|float}>|null  $affiliateUplineLevels  Upline override levels
+     * @param  list<array{level: int, type?: string, value?: int|float, share?: float}>|null  $affiliateUplineLevels  Upline override levels
      */
     public function __construct(
         public readonly string $id,

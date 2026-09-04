@@ -18,6 +18,8 @@ use AIArmada\Vouchers\Facades\Voucher;
 use AIArmada\Vouchers\Listeners\IncrementVoucherAppliedCount;
 use AIArmada\Vouchers\Services\VoucherService;
 use AIArmada\Vouchers\Services\VoucherValidator;
+use AIArmada\Vouchers\Stacking\Contracts\StackingPolicyInterface;
+use AIArmada\Vouchers\Stacking\StackingPolicy;
 use AIArmada\Vouchers\Support\AffiliateIntegrationRegistrar;
 use AIArmada\Vouchers\Support\CartManagerWithVouchers;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
@@ -47,6 +49,9 @@ final class VoucherServiceProvider extends PackageServiceProvider
 
         // Bind interface for checkout package integration
         $this->app->bind(VoucherServiceInterface::class, VoucherService::class);
+        $this->app->bind(StackingPolicyInterface::class, static fn (): StackingPolicy => StackingPolicy::fromConfig(
+            (array) config('vouchers.stacking', [])
+        ));
 
         if (class_exists(ConditionProviderRegistry::class)) {
             $this->app->singleton(VoucherConditionProvider::class);
@@ -70,7 +75,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
 
                     if (is_string($code) && $code !== '' && ($voucherData = Voucher::find($code))) {
                         /** @var int $conditionOrder */
-                        $conditionOrder = config('vouchers.cart.condition_order', 50);
+                        $conditionOrder = config('vouchers.stacking.condition_order', 50);
                         $order = isset($payload['order']) && is_int($payload['order'])
                             ? $payload['order']
                             : $conditionOrder;
@@ -133,6 +138,7 @@ final class VoucherServiceProvider extends PackageServiceProvider
             VoucherService::class,
             VoucherServiceInterface::class,
             VoucherValidator::class,
+            StackingPolicyInterface::class,
             Services\VoucherDiscountCalculator::class,
             VoucherRulesFactory::class,
             AffiliateIntegrationRegistrar::class,

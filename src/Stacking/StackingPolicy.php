@@ -121,6 +121,12 @@ class StackingPolicy implements StackingPolicyInterface
 
         $maxVouchers = $this->getMaxVouchers();
 
+        if ($maxVouchers === 0) {
+            return StackingDecision::deny(
+                reason: 'Vouchers are disabled',
+            );
+        }
+
         if ($maxVouchers > 0 && $existingVouchers->count() >= $maxVouchers) {
             return StackingDecision::deny(
                 reason: "Maximum of {$maxVouchers} vouchers reached",
@@ -141,12 +147,20 @@ class StackingPolicy implements StackingPolicyInterface
 
         $maxVouchers = $this->getMaxVouchers();
 
-        if ($maxVouchers > 0 && $vouchers->count() <= $maxVouchers) {
+        if ($maxVouchers === 0) {
+            return $vouchers->take(0)->values();
+        }
+
+        if ($maxVouchers < 0) {
+            return $vouchers;
+        }
+
+        if ($vouchers->count() <= $maxVouchers) {
             return $vouchers;
         }
 
         // ponytail: best-combination removed with StackingEngine; return first N
-        return $vouchers->take($maxVouchers > 0 ? $maxVouchers : $vouchers->count())->values();
+        return $vouchers->take($maxVouchers)->values();
     }
 
     public function getApplicationOrder(

@@ -63,9 +63,7 @@ final class ApplyVoucherToCart
         );
 
         if ($decision->isDenied()) {
-            $replaceWhenMaxReached = (bool) config('vouchers.cart.replace_when_max_reached', true);
-
-            if ($policy->isAutoReplaceEnabled() && $replaceWhenMaxReached && $decision->hasConflict()) {
+            if ($policy->isAutoReplaceEnabled() && $decision->hasConflict()) {
                 $conflicting = $decision->conflictsWith;
                 if ($conflicting !== null) {
                     RemoveVoucherFromCart::run($cart, $conflicting->getVoucherCode());

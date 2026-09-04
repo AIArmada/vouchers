@@ -20,7 +20,7 @@ title: Troubleshooting
 
 **Likely cause:** cart validation rules reject the voucher because of minimum cart value, usage limits, targeting, or stacking rules.
 
-**Fix:** review `vouchers.validation.*`, `vouchers.cart.*`, and `vouchers.stacking.*` together. A voucher can exist and still be ineligible for the current cart.
+**Fix:** review `vouchers.validation.*` and `vouchers.stacking.*` together. A voucher can exist and still be ineligible for the current cart.
 
 **Verify:** validate the same voucher against the same cart payload and confirm the returned reason matches the expected business rule.
 

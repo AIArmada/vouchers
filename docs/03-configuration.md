@@ -38,18 +38,6 @@ Use `VOUCHERS_TABLE_PREFIX` when you need a package-specific prefix. JSON column
 - `default_currency` is the opinionated package default for money-like voucher fields.
 - `code.auto_uppercase` is always enabled, so code matching stays case-insensitive.
 
-## Cart Integration
-
-```php
-'cart' => [
-    'max_vouchers_per_cart' => (int) env('VOUCHERS_MAX_PER_CART', 1),
-    'replace_when_max_reached' => true,
-    'condition_order' => 50,
-],
-```
-
-These keys control how many vouchers can be attached to a cart and where voucher conditions run inside the cart calculation chain.
-
 ## Stacking Policies
 
 ```php
@@ -66,6 +54,7 @@ These keys control how many vouchers can be attached to a cart and where voucher
     ],
     'auto_optimize' => false,
     'auto_replace' => true,
+    'condition_order' => 50,
 ],
 ```
 
