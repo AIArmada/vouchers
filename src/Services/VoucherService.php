@@ -363,25 +363,30 @@ class VoucherService implements VoucherServiceInterface
     /**
      * Redeem a voucher after successful order completion.
      */
-    public function redeem(string $code, string $orderId): void
-    {
+    public function redeem(
+        string $code,
+        string $orderId,
+        ?int $discountAmount = null,
+        ?string $currency = null,
+    ): void {
         $voucher = $this->voucherQuery()
             ->where('code', $this->normalizeCode($code))
             ->firstOrFail();
 
         /** @var VoucherModel $voucher */
-        $currency = config('vouchers.default_currency', 'MYR');
+        $currency = mb_strtoupper((string) ($currency ?: $voucher->currency ?: config('vouchers.default_currency', 'MYR')));
 
         $voucherType = $voucher->type instanceof VoucherType
             ? $voucher->type
             : VoucherType::tryFrom((string) $voucher->type);
 
         // Calculate the discount amount based on voucher type
-        $discountAmount = match ($voucherType) {
-            VoucherType::Percentage => Money::{$currency}(0), // Will be updated with actual order discount
-            VoucherType::Fixed => Money::{$currency}((int) ($voucher->value ?? 0)),
-            default => Money::{$currency}(0),
+        $discount = $discountAmount ?? match ($voucherType) {
+            VoucherType::Percentage => 0, // The checkout integration supplies the allocated amount.
+            VoucherType::Fixed => (int) ($voucher->value ?? 0),
+            default => 0,
         };
+        $money = Money::{$currency}(max(0, $discount));
 
         $redeemedBy = $this->resolveRedeemedByOrder($orderId);
         $metadata = [
@@ -406,7 +411,7 @@ class VoucherService implements VoucherServiceInterface
 
         $this->recordUsage(
             code: $code,
-            discountAmount: $discountAmount,
+            discountAmount: $money,
             channel: 'checkout',
             metadata: $metadata,
             redeemedBy: $redeemedBy,

@@ -53,6 +53,25 @@ final class RecordVoucherUsage
                 throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
             }
 
+            $idempotencyField = 'idempotency_key';
+            $idempotencyKey = data_get($metadata, $idempotencyField);
+
+            if (! is_scalar($idempotencyKey) || mb_trim((string) $idempotencyKey) === '') {
+                $idempotencyField = 'order_id';
+                $idempotencyKey = data_get($metadata, $idempotencyField);
+            }
+
+            if (is_scalar($idempotencyKey) && mb_trim((string) $idempotencyKey) !== '') {
+                $existingUsage = VoucherUsage::query()
+                    ->where('voucher_id', $lockedVoucher->id)
+                    ->whereJsonContains('metadata->' . $idempotencyField, (string) $idempotencyKey)
+                    ->first();
+
+                if ($existingUsage instanceof VoucherUsage) {
+                    return $existingUsage;
+                }
+            }
+
             // Check global usage limit
             if ($lockedVoucher->usage_limit !== null) {
                 $currentUses = VoucherUsage::where('voucher_id', $lockedVoucher->id)->count();

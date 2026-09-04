@@ -117,5 +117,10 @@ interface VoucherServiceInterface
     /**
      * Redeem a voucher after successful order.
      */
-    public function redeem(string $code, string $orderId): void;
+    public function redeem(
+        string $code,
+        string $orderId,
+        ?int $discountAmount = null,
+        ?string $currency = null,
+    ): void;
 }
