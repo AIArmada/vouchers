@@ -18,7 +18,7 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['vouchers'] ?? $prefix . 'vouchers';
 
-        Schema::create($tableName, function (Blueprint $table): void {
+        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->nullableUuidMorphs('owner');
             $table->string('code')->unique();

@@ -15,7 +15,7 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['voucher_transactions'] ?? $prefix . 'voucher_transactions';
 
-        Schema::create($tableName, function (Blueprint $table): void {
+        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('voucher_id');
             $table->foreignUuid('voucher_wallet_id')->nullable();

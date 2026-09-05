@@ -291,7 +291,7 @@ class VoucherService implements VoucherServiceInterface
         Cache::put($cacheKey, [
             'voucher_id' => $voucher->id,
             'session_id' => $sessionId,
-            'reserved_at' => now()->toIso8601String(),
+            'reserved_at' => CarbonImmutable::now()->toIso8601String(),
         ], $ttl);
 
         $sessionIds = Cache::get($sessionsKey, []);

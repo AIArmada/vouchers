@@ -171,7 +171,7 @@ trait HasVouchers // @phpstan-ignore trait.unused
                 'redeemed_by_type' => $this->getMorphClass(),
                 'redeemed_by_id' => $this->getKey(),
                 'notes' => 'Redemption via wallet',
-                'used_at' => now(),
+                'used_at' => CarbonImmutable::now(),
             ]);
         });
     }

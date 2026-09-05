@@ -19,6 +19,7 @@ use Spatie\Activitylog\Support\LogOptions;
 /**
  * @property string $id
  * @property string $voucher_id
+ * @property string|null $idempotency_key
  * @property string $currency
  * @property int $discount_amount
  * @property string $channel
@@ -50,6 +51,7 @@ final class VoucherUsage extends Model implements Auditable
 
     protected $fillable = [
         'voucher_id',
+        'idempotency_key',
         'discount_amount',
         'currency',
         'channel',

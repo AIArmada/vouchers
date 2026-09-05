@@ -17,9 +17,10 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['voucher_usage'] ?? $prefix . 'voucher_usage';
 
-        Schema::create($tableName, function (Blueprint $table): void {
+        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('voucher_id');
+            $table->string('idempotency_key', 64)->nullable();
             $table->bigInteger('discount_amount'); // stored in cents
             $table->string('currency', 3);
             $table->string('channel')->nullable();
@@ -32,6 +33,7 @@ return new class extends Migration
 
             // Indexes
             $table->index('voucher_id'); // For querying usage by voucher
+            $table->unique(['voucher_id', 'idempotency_key'], 'voucher_usage_idempotency_unique');
             // Note: nullableUuidMorphs('redeemed_by') already creates index on ['redeemed_by_type', 'redeemed_by_id']
             $table->index('channel'); // For filtering by redemption channel
             $table->index('used_at'); // For sorting by usage date

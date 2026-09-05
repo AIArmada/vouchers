@@ -53,24 +53,7 @@ final class RecordVoucherUsage
                 throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
             }
 
-            $idempotencyField = 'idempotency_key';
-            $idempotencyKey = data_get($metadata, $idempotencyField);
-
-            if (! is_scalar($idempotencyKey) || mb_trim((string) $idempotencyKey) === '') {
-                $idempotencyField = 'order_id';
-                $idempotencyKey = data_get($metadata, $idempotencyField);
-            }
-
-            if (is_scalar($idempotencyKey) && mb_trim((string) $idempotencyKey) !== '') {
-                $existingUsage = VoucherUsage::query()
-                    ->where('voucher_id', $lockedVoucher->id)
-                    ->whereJsonContains('metadata->' . $idempotencyField, (string) $idempotencyKey)
-                    ->first();
-
-                if ($existingUsage instanceof VoucherUsage) {
-                    return $existingUsage;
-                }
-            }
+            $idempotencyKey = $this->resolveIdempotencyKey($metadata);
 
             // Check global usage limit
             if ($lockedVoucher->usage_limit !== null) {
@@ -92,8 +75,9 @@ final class RecordVoucherUsage
                 }
             }
 
-            $usage = VoucherUsage::create([
+            $usageAttributes = [
                 'voucher_id' => $lockedVoucher->id,
+                'idempotency_key' => $idempotencyKey,
                 'discount_amount' => $discountAmount->getAmount(),
                 'currency' => $discountAmount->getCurrency()->getCurrency(),
                 'channel' => $channel ?? 'web',
@@ -102,8 +86,22 @@ final class RecordVoucherUsage
                 'redeemed_by_type' => $redeemedBy?->getMorphClass(),
                 'redeemed_by_id' => $redeemedBy?->getKey(),
                 'notes' => $notes,
-                'used_at' => now(),
-            ]);
+                'used_at' => CarbonImmutable::now(),
+            ];
+
+            $usage = $idempotencyKey === null
+                ? VoucherUsage::create($usageAttributes)
+                : VoucherUsage::query()->createOrFirst(
+                    [
+                        'voucher_id' => $lockedVoucher->id,
+                        'idempotency_key' => $idempotencyKey,
+                    ],
+                    $usageAttributes,
+                );
+
+            if (! $usage->wasRecentlyCreated) {
+                return $usage;
+            }
 
             // Update status to depleted if usage limit reached
             // Note: applied_count tracks cart applications (incremented by IncrementVoucherAppliedCount
@@ -124,6 +122,24 @@ final class RecordVoucherUsage
 
             return $usage;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $metadata
+     */
+    private function resolveIdempotencyKey(?array $metadata): ?string
+    {
+        $value = data_get($metadata, 'idempotency_key');
+
+        if (! is_scalar($value) || mb_trim((string) $value) === '') {
+            $value = data_get($metadata, 'order_id');
+        }
+
+        if (! is_scalar($value) || mb_trim((string) $value) === '') {
+            return null;
+        }
+
+        return hash('sha256', (string) $value);
     }
 
     private function findVoucher(string $code): VoucherModel

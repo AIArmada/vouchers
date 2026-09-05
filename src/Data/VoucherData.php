@@ -11,6 +11,7 @@ use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\VoucherStatus;
 use Akaunting\Money\Money;
 use BackedEnum;
+use Carbon\CarbonImmutable;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Spatie\LaravelData\Attributes\MapInputName;
@@ -259,7 +260,7 @@ class VoucherData extends Data
             return false;
         }
 
-        return $this->expiresAt < now();
+        return $this->expiresAt < CarbonImmutable::now();
     }
 
     /**
@@ -271,7 +272,7 @@ class VoucherData extends Data
             return true;
         }
 
-        return $this->startsAt <= now();
+        return $this->startsAt <= CarbonImmutable::now();
     }
 
     /**
