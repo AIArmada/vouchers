@@ -44,8 +44,6 @@ This creates the following tables:
 | `vouchers` | Stores voucher definitions |
 | `voucher_usage` | Tracks each voucher redemption |
 | `voucher_wallets` | User wallet entries for saved vouchers |
-| `voucher_assignments` | Voucher assignments to users (credit system) |
-| `voucher_transactions` | Transaction history for credit-based vouchers |
 
 ## JSON Column Type (PostgreSQL)
 

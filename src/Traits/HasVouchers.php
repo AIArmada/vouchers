@@ -6,49 +6,15 @@ namespace AIArmada\Vouchers\Traits;
 
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\Vouchers\Models\Voucher;
-use AIArmada\Vouchers\Models\VoucherTransaction;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
 use Carbon\CarbonImmutable;
-use Exception;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
-trait HasVouchers // @phpstan-ignore trait.unused
+trait HasVouchers
 {
-    /**
-     * Get the vouchers assigned to this model (Credit System).
-     *
-     * @return BelongsToMany<Voucher, $this>
-     */
-    public function assignedVouchers(): BelongsToMany
-    {
-        /** @var array<string, string> $tables */
-        $tables = config('vouchers.database.tables', []);
-        $prefix = (string) config('vouchers.database.table_prefix', '');
-
-        return $this->morphToMany(
-            Voucher::class,
-            'assignee',
-            $tables['voucher_assignments'] ?? $prefix . 'voucher_assignments'
-        )
-            ->withPivot('assigned_at', 'expires_at')
-            ->withTimestamps();
-    }
-
-    /**
-     * Get the voucher transaction entries for this model (Credit System).
-     *
-     * @return MorphMany<VoucherTransaction, $this>
-     */
-    public function voucherTransactions(): MorphMany
-    {
-        return $this->morphMany(VoucherTransaction::class, 'walletable');
-    }
-
     /**
      * Get all vouchers in the wallet (Coupon System).
      *
@@ -67,113 +33,6 @@ trait HasVouchers // @phpstan-ignore trait.unused
     public function voucherUsages(): MorphMany
     {
         return $this->morphMany(VoucherUsage::class, 'redeemedBy');
-    }
-
-    /**
-     * Get the wallet balance for a specific voucher (Credit System).
-     */
-    public function voucherBalance(Voucher $voucher): int
-    {
-        // We can get the balance from the last transaction or sum amounts.
-        // Summing amounts is safer if we don't trust the running balance.
-        return (int) $this->voucherTransactions()
-            ->where('voucher_id', $voucher->getKey())
-            ->sum('amount');
-    }
-
-    /**
-     * Check if the model can redeem a specific voucher.
-     */
-    public function canRedeemVoucher(Voucher $voucher, ?int $amount = null): bool
-    {
-        // Check if assigned
-        $isAssigned = $this->assignedVouchers()
-            ->whereKey($voucher->getKey())
-            ->exists();
-
-        if (! $isAssigned) {
-            return false;
-        }
-
-        // Check if voucher is valid (active, dates, etc.)
-        if (! $voucher->canBeRedeemed()) {
-            return false;
-        }
-
-        // If amount is specified, check balance
-        if ($amount !== null) {
-            return $this->voucherBalance($voucher) >= $amount;
-        }
-
-        return true;
-    }
-
-    /**
-     * Assign a voucher and optionally grant initial credit.
-     */
-    public function assignAndCreditVoucher(Voucher $voucher, int $creditAmount = 0, string $description = 'Assignment Gift'): VoucherTransaction
-    {
-        // Assign if not already assigned
-        if (! $this->assignedVouchers()->whereKey($voucher->getKey())->exists()) {
-            $this->assignedVouchers()->attach($voucher->getKey());
-        }
-
-        // Grant credit
-        return $this->grantVoucherCredit($voucher, $creditAmount, $description);
-    }
-
-    /**
-     * Grant credit to the voucher wallet (via transaction).
-     */
-    public function grantVoucherCredit(Voucher $voucher, int $creditAmount, string $description, ?VoucherWallet $voucherWallet = null): VoucherTransaction
-    {
-        $balance = $this->voucherBalance($voucher) + $creditAmount;
-
-        /** @var VoucherTransaction $transaction */
-        $transaction = $this->voucherTransactions()->create([
-            'voucher_id' => $voucher->getKey(),
-            'voucher_wallet_id' => $voucherWallet?->getKey(),
-            'amount' => $creditAmount,
-            'balance' => $balance,
-            'type' => $creditAmount >= 0 ? 'credit' : 'debit',
-            'currency' => $voucher->currency,
-            'description' => $description,
-        ]);
-
-        return $transaction;
-    }
-
-    /**
-     * Redeem a voucher, deducting from wallet and recording usage.
-     */
-    public function redeemVoucher(Voucher $voucher, int $amount): VoucherUsage
-    {
-        if (! $this->canRedeemVoucher($voucher, $amount)) {
-            throw new Exception('Cannot redeem voucher: Insufficient balance or invalid voucher.');
-        }
-
-        return DB::transaction(function () use ($voucher, $amount): VoucherUsage {
-            $walletEntry = $this->resolveVoucherWalletEntry($voucher);
-
-            // 1. Debit wallet
-            $this->grantVoucherCredit($voucher, -$amount, 'Redemption', $walletEntry);
-
-            if ($walletEntry) {
-                $walletEntry->markAsRedeemed();
-            }
-
-            // 2. Record usage
-            return VoucherUsage::create([
-                'voucher_id' => $voucher->getKey(),
-                'discount_amount' => $amount,
-                'currency' => $voucher->currency,
-                'channel' => 'web', // Default channel, maybe make configurable
-                'redeemed_by_type' => $this->getMorphClass(),
-                'redeemed_by_id' => $this->getKey(),
-                'notes' => 'Redemption via wallet',
-                'used_at' => CarbonImmutable::now(),
-            ]);
-        });
     }
 
     /**
@@ -290,18 +149,6 @@ trait HasVouchers // @phpstan-ignore trait.unused
         if ($walletEntry) {
             $walletEntry->markAsRedeemed();
         }
-    }
-
-    protected function resolveVoucherWalletEntry(Voucher $voucher, bool $onlyAvailable = true): ?VoucherWallet
-    {
-        /** @var VoucherWallet|null $walletEntry */
-        $walletEntry = $this->voucherWallets()
-            ->where('voucher_id', $voucher->getKey())
-            ->when($onlyAvailable, fn ($query) => $query->whereNull('redeemed_at'))
-            ->orderBy('claimed_at')
-            ->first();
-
-        return $walletEntry;
     }
 
     /**

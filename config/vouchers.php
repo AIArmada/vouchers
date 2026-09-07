@@ -8,8 +8,6 @@ $tables = [
     'vouchers' => $tablePrefix . 'vouchers',
     'voucher_usage' => $tablePrefix . 'voucher_usage',
     'voucher_wallets' => $tablePrefix . 'voucher_wallets',
-    'voucher_assignments' => $tablePrefix . 'voucher_assignments',
-    'voucher_transactions' => $tablePrefix . 'voucher_transactions',
 ];
 
 return [

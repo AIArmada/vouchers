@@ -41,9 +41,9 @@ keywords:
 - Owner/security: Owner-scoped (Voucher, Wallet; configurable).
 
 ## Key surfaces
-- Models: `Voucher`, `VoucherAssignment`, `VoucherTransaction`, `VoucherUsage`, `VoucherWallet`
+- Models: `Voucher`, `VoucherUsage`, `VoucherWallet`
 - Actions/Services: `Actions/AddVoucherToWallet`, `Actions/ApplyVoucherToCart`, `Actions/CreateVoucher`, `Actions/ExpireVoucher`, `Actions/RecordVoucherUsage`, `Actions/RemoveVoucherFromCart`, `Actions/UpdateVoucher`, `Actions/ValidateVoucherCode`
-- Config `vouchers.php`: `vouchers`, `voucher_usage`, `voucher_wallets`, `voucher_assignments`, `voucher_transactions`, `database`, `table_prefix`, `tables`, `json_column_type`, `default_currency`
+- Config `vouchers.php`: `vouchers`, `voucher_usage`, `voucher_wallets`, `database`, `table_prefix`, `tables`, `json_column_type`, `default_currency`
 
 ## Docs map
 - Start: `01-overview` → `03-configuration` → `04-usage` → `99-troubleshooting`

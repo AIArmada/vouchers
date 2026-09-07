@@ -12,7 +12,7 @@ The `aiarmada/vouchers` package owns voucher and coupon issuance, redemption rul
 
 - Voucher definitions and redemption behavior
 - Voucher usage tracking and redemption history
-- Voucher wallets, assignments, and transaction tracking for saved or credit-style voucher flows
+- Voucher wallets and usage tracking for saved-voucher flows
 - Manual redemption rules and owner-aware voucher behavior
 
 ## What this package does not own
@@ -31,7 +31,7 @@ The `aiarmada/vouchers` package owns voucher and coupon issuance, redemption rul
 
 ## Main models services or surfaces
 
-- **Models and records** — vouchers, voucher usage, voucher wallets, voucher assignments, and voucher transactions
+- **Models and records** — vouchers, voucher usage, and voucher wallets
 - **Actions** — `CreateVoucher`, `UpdateVoucher`, `ExpireVoucher`, `ApplyVoucherToCart`, `RemoveVoucherFromCart`, `RecordVoucherUsage`, `ValidateVoucherCode`. Each is a `lorisleiva/laravel-actions` action callable via `::run()`.
 - **Events** — `VoucherCreated`, `VoucherExpired`, `VoucherRefilled`, `VoucherUsageRecorded`, `VoucherApplied`, `VoucherRemoved`. Dispatched by the corresponding actions and services.
 - **Stacking** — `StackingPolicy` (configurable strategy), `StackingRuleRegistry` (extensible rule lookup), and built-in rules (max vouchers, max discount percentage, type restriction, value threshold, mutual exclusion, category/campaign exclusion). Controlled by `StackingEngine`.

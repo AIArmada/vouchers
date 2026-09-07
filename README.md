@@ -277,8 +277,6 @@ $stats = $voucher->getStatistics();
     'vouchers' => 'vouchers',
     'voucher_usage' => 'voucher_usage',
     'voucher_wallets' => 'voucher_wallets',
-    'voucher_assignments' => 'voucher_assignments',
-    'voucher_transactions' => 'voucher_transactions',
 ],
 ```
 
@@ -308,8 +306,6 @@ Voucher::delete(string $code): bool
 
 // Validation
 Voucher::validate(string $code, mixed $cart): VoucherValidationResult
-Voucher::isValid(string $code): bool
-Voucher::canBeUsedBy(string $code, ?Model $user = null): bool
 Voucher::getRemainingUses(string $code): int
 
 // Usage

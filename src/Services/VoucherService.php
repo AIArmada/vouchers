@@ -98,45 +98,6 @@ class VoucherService implements VoucherServiceInterface
         return $this->validator->validate($code, $cart);
     }
 
-    public function isValid(string $code): bool
-    {
-        $voucher = $this->voucherQuery()
-            ->where('code', $this->normalizeCode($code))
-            ->first();
-
-        /** @var VoucherModel|null $voucher */
-        if (! $voucher) {
-            return false;
-        }
-
-        return $voucher->isActive()
-            && $voucher->hasStarted()
-            && ! $voucher->isExpired()
-            && $voucher->hasUsageLimitRemaining();
-    }
-
-    public function canBeUsedBy(string $code, ?Model $user = null): bool
-    {
-        $voucher = $this->voucherQuery()
-            ->where('code', $this->normalizeCode($code))
-            ->first();
-
-        if (! $voucher) {
-            return false;
-        }
-
-        if (! $voucher->usage_limit_per_user || ! $user) {
-            return true;
-        }
-
-        $usageCount = VoucherUsage::where('voucher_id', $voucher->id)
-            ->where('redeemed_by_type', $user->getMorphClass())
-            ->where('redeemed_by_id', $user->getKey())
-            ->count();
-
-        return $usageCount < $voucher->usage_limit_per_user;
-    }
-
     public function getRemainingUses(string $code): int
     {
         $voucher = $this->voucherQuery()

@@ -105,26 +105,6 @@ Returns `VoucherValidationResult` with:
 
 ---
 
-#### isValid
-
-Check if a voucher is valid (without cart context).
-
-```php
-Voucher::isValid(string $code): bool
-```
-
----
-
-#### canBeUsedBy
-
-Check if a user can use a voucher.
-
-```php
-Voucher::canBeUsedBy(string $code, ?Model $user = null): bool
-```
-
----
-
 #### getRemainingUses
 
 Get remaining usage count.

@@ -148,13 +148,6 @@ class POSController extends Controller
         $terminal = $request->header('X-Terminal-ID');
         
         try {
-            // Validate voucher first
-            if (!Voucher::isValid($request->voucher_code)) {
-                return response()->json([
-                    'error' => 'Invalid or expired voucher',
-                ], 422);
-            }
-            
             // Get remaining value (for gift cards)
             $remaining = Voucher::getRemainingUses($request->voucher_code);
             
@@ -227,7 +220,7 @@ class AdminVoucherController extends Controller
 
 ## ValidateVoucherCode Action
 
-As an alternative to the facade `Voucher::isValid()`, use the `ValidateVoucherCode` action for programmatic validation that returns a structured result:
+Use the `ValidateVoucherCode` action for checkout-aware programmatic validation that returns a structured result:
 
 ```php
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;

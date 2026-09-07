@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\Facade;
  * @method static \AIArmada\Vouchers\Data\VoucherData update(string $code, array<string, mixed> $data)
  * @method static bool delete(string $code)
  * @method static \AIArmada\Vouchers\Data\VoucherValidationResult validate(string $code, mixed $cart)
- * @method static bool isValid(string $code)
- * @method static bool canBeUsedBy(string $code, ?\Illuminate\Database\Eloquent\Model $user = null)
  * @method static int getRemainingUses(string $code)
  * @method static void recordUsage(string $code, \Akaunting\Money\Money $discountAmount, ?string $channel = null, ?array<string, mixed> $metadata = null, ?\Illuminate\Database\Eloquent\Model $redeemedBy = null, ?string $notes = null, ?\AIArmada\Vouchers\Models\Voucher $voucherModel = null)
  * @method static void redeemManually(string $code, \Akaunting\Money\Money $discountAmount, ?string $reference = null, ?array<string, mixed> $metadata = null, ?\Illuminate\Database\Eloquent\Model $redeemedBy = null, ?string $notes = null)

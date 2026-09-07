@@ -4,7 +4,7 @@ title: Voucher Wallet
 
 # Voucher Wallet
 
-This deep dive explains the optional saved-voucher and balance-style wallet workflows.
+This deep dive explains the optional saved-voucher wallet workflow.
 
 The voucher wallet allows users to save vouchers for later use. This is useful for loyalty programs, gift vouchers, and promotional campaigns.
 
@@ -226,31 +226,4 @@ class CheckoutController extends Controller
         // Continue with order processing...
     }
 }
-```
-
-## Credit System (Advanced)
-
-For balance-based vouchers (like gift cards with stored value), use the assignment and transaction features:
-
-```php
-// Assign voucher and grant initial credit
-$user->assignAndCreditVoucher($voucher, 10000, 'Gift Card Purchase');
-
-// Check balance
-$balance = $user->voucherBalance($voucher);
-echo "Balance: RM" . number_format($balance / 100, 2);
-
-// Grant additional credit
-$user->grantVoucherCredit($voucher, 2500, 'Bonus Credit');
-
-// Redeem (deducts from balance)
-if ($user->canRedeemVoucher($voucher, 5000)) {
-    $usage = $user->redeemVoucher($voucher, 5000);
-}
-
-// Check transaction history
-$transactions = $user->voucherTransactions()
-    ->where('voucher_id', $voucher->id)
-    ->orderByDesc('created_at')
-    ->get();
 ```

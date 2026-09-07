@@ -55,16 +55,6 @@ interface VoucherServiceInterface
     public function validate(string $code, mixed $cart): array | VoucherValidationResult;
 
     /**
-     * Check if a voucher code is valid.
-     */
-    public function isValid(string $code): bool;
-
-    /**
-     * Check if a voucher can be used by a specific user.
-     */
-    public function canBeUsedBy(string $code, ?Model $user = null): bool;
-
-    /**
      * Get remaining uses for a voucher.
      */
     public function getRemainingUses(string $code): int;

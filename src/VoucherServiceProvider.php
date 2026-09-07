@@ -16,6 +16,7 @@ use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Events\VoucherApplied;
 use AIArmada\Vouchers\Facades\Voucher;
 use AIArmada\Vouchers\Listeners\IncrementVoucherAppliedCount;
+use AIArmada\Vouchers\Listeners\ValidateVoucherOnCheckout;
 use AIArmada\Vouchers\Services\VoucherService;
 use AIArmada\Vouchers\Services\VoucherValidator;
 use AIArmada\Vouchers\Stacking\Contracts\StackingPolicyInterface;
@@ -104,6 +105,12 @@ final class VoucherServiceProvider extends PackageServiceProvider
     public function packageBooted(): void
     {
         Event::listen(VoucherApplied::class, IncrementVoucherAppliedCount::class);
+
+        $checkoutStartedEvent = 'AIArmada\\Checkout\\Events\\CheckoutStarted';
+
+        if (class_exists($checkoutStartedEvent)) {
+            Event::listen($checkoutStartedEvent, ValidateVoucherOnCheckout::class);
+        }
 
         $this->app->make(AffiliateIntegrationRegistrar::class)->register();
 

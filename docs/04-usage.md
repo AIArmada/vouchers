@@ -127,7 +127,6 @@ $voucher = Voucher::create([
     'currency' => 'MYR',
     'promotion_id' => $promotion?->id,
     'metadata' => [
-        'source_promotion_name' => $promotion?->name,
     ],
 ]);
 ```

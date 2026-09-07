@@ -156,14 +156,6 @@ class Voucher extends Model implements Auditable
     }
 
     /**
-     * @return HasMany<VoucherTransaction, $this>
-     */
-    public function transactions(): HasMany
-    {
-        return $this->hasMany(VoucherTransaction::class);
-    }
-
-    /**
      * Get the promotion that issued this voucher when the promotions package is installed.
      *
      * @return BelongsTo<Model, $this>
@@ -518,43 +510,25 @@ class Voucher extends Model implements Auditable
 
     public function getPromotionSourceIdAttribute(): ?string
     {
-        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
-            $promotion = $this->promotion;
-
-            if ($promotion !== null && $promotion->getKey() !== null) {
-                return (string) $promotion->getKey();
-            }
-        }
-
-        return $this->normalizePromotionSourceString(
-            data_get($this->metadata, 'source_promotion_id', $this->promotion_id)
-        );
+        return $this->normalizePromotionSourceString($this->promotion_id);
     }
 
     public function getPromotionSourceNameAttribute(): ?string
     {
-        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
-            $promotion = $this->promotion;
-
-            if ($promotion !== null) {
-                return $this->normalizePromotionSourceString($promotion->getAttribute('name'));
-            }
+        if (! class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
+            return null;
         }
 
-        return $this->normalizePromotionSourceString(data_get($this->metadata, 'source_promotion_name'));
+        return $this->normalizePromotionSourceString($this->promotion?->getAttribute('name'));
     }
 
     public function getPromotionSourceCodeAttribute(): ?string
     {
-        if (class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
-            $promotion = $this->promotion;
-
-            if ($promotion !== null) {
-                return $this->normalizePromotionSourceString($promotion->getAttribute('code'));
-            }
+        if (! class_exists('\\AIArmada\\Promotions\\Models\\Promotion')) {
+            return null;
         }
 
-        return $this->normalizePromotionSourceString(data_get($this->metadata, 'source_promotion_code'));
+        return $this->normalizePromotionSourceString($this->promotion?->getAttribute('code'));
     }
 
     public function getPromotionSourceLabelAttribute(): ?string
@@ -606,7 +580,6 @@ class Voucher extends Model implements Auditable
         self::deleting(function (Voucher $voucher): void {
             $voucher->usages()->delete();
             $voucher->walletEntries()->delete();
-            $voucher->transactions()->delete();
         });
     }
 

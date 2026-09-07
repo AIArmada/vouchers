@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Listeners;
 
 use AIArmada\Cart\Cart;
+use AIArmada\Cart\Contracts\CartManagerInterface;
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Vouchers\Exceptions\VoucherValidationException;
 use AIArmada\Vouchers\Support\VoucherCartMetadata;
@@ -24,7 +25,7 @@ class ValidateVoucherOnCheckout
      * Validates all vouchers in the cart and removes any that are no longer valid.
      * Optionally throws an exception if configured to block checkout on invalid vouchers.
      *
-     * @param  object  $event  The checkout started event (cart.checkout.started)
+     * @param  object  $event  A cart event or checkout-started event
      *
      * @throws VoucherValidationException When configured to block on invalid vouchers
      */
@@ -76,6 +77,19 @@ class ValidateVoucherOnCheckout
             return $event->cart;
         }
 
-        return null;
+        if (! property_exists($event, 'session') || ! is_object($event->session)) {
+            return null;
+        }
+
+        $session = $event->session;
+        $cartId = method_exists($session, 'getAttribute')
+            ? $session->getAttribute('cart_id')
+            : (property_exists($session, 'cart_id') ? $session->cart_id : null);
+
+        if (! is_string($cartId) || mb_trim($cartId) === '' || ! app()->bound(CartManagerInterface::class)) {
+            return null;
+        }
+
+        return app(CartManagerInterface::class)->getById($cartId);
     }
 }
