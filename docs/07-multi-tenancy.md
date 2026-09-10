@@ -166,7 +166,7 @@ All voucher queries are automatically scoped:
 $voucher = Voucher::find('MERCHANT10');
 
 // Same scoping applies to checkout-aware validation
-$cart = cart();
+$cart = app(AIArmada\Cart\Contracts\CartManagerInterface::class)->getCartInstance('default');
 $validation = Voucher::validate('MERCHANT10', $cart);
 ```
 
@@ -215,7 +215,7 @@ The validator respects owner scoping:
 
 ```php
 // Only validates if voucher belongs to current owner (or is global)
-$cart = cart();
+$cart = app(AIArmada\Cart\Contracts\CartManagerInterface::class)->getCartInstance('default');
 $result = Voucher::validate('MERCHANT10', $cart);
 
 if (!$result->isValid) {

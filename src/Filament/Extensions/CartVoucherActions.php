@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Filament\Extensions;
 
+use AIArmada\Cart\Snapshots\CartInstanceManager;
+use AIArmada\Cart\Snapshots\CartSnapshot as Cart;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Support\OwnerQuery;
-use AIArmada\FilamentCart\Models\Cart;
-use AIArmada\FilamentCart\Services\CartInstanceManager;
 use AIArmada\Vouchers\Exceptions\VoucherException;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Filament\Integrations;
 
+use AIArmada\Cart\Snapshots\CartInstanceManager;
+use AIArmada\Cart\Snapshots\CartSnapshot as Cart;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\CommerceSupport\Support\OwnerQuery;
-use AIArmada\FilamentCart\Models\Cart;
 use AIArmada\FilamentCart\Resources\CartResource;
-use AIArmada\FilamentCart\Services\CartInstanceManager;
 use AIArmada\Vouchers\Exceptions\VoucherException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
