@@ -207,9 +207,7 @@ class BundleVoucherCondition extends CompoundVoucherCondition
         $bundleValue = $this->getBundleValue($cart) * $bundleCount;
 
         if (str_ends_with($discount, '%')) {
-            $percent = abs((float) str_replace(['%', '-', '+'], '', $discount));
-
-            return (int) round($bundleValue * ($percent / 100));
+            return $this->calculatePercentageAmount($bundleValue, $discount);
         }
 
         // Fixed discount per bundle
@@ -226,9 +224,7 @@ class BundleVoucherCondition extends CompoundVoucherCondition
         $cartValue = $cart->getRawSubtotal();
 
         if (str_ends_with($discount, '%')) {
-            $percent = abs((float) str_replace(['%', '-', '+'], '', $discount));
-
-            return (int) round($cartValue * ($percent / 100));
+            return $this->calculatePercentageAmount($cartValue, $discount);
         }
 
         $amount = abs((int) str_replace(['-', '+'], '', $discount));

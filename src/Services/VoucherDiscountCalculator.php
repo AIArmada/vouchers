@@ -33,6 +33,6 @@ final class VoucherDiscountCalculator
 
         $condition = new VoucherCondition($voucher, dynamic: false);
 
-        return (int) round(abs($condition->getCalculatedValue((float) $subtotal)));
+        return abs($condition->getCalculatedValue($subtotal));
     }
 }

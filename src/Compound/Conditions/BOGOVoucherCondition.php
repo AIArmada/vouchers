@@ -227,9 +227,7 @@ class BOGOVoucherCondition extends CompoundVoucherCondition
     protected function calculateItemDiscount(int $price, string $discount): int
     {
         if (str_ends_with($discount, '%')) {
-            $percent = (int) str_replace('%', '', $discount);
-
-            return (int) round($price * ($percent / 100));
+            return $this->calculatePercentageAmount($price, $discount);
         }
 
         // Fixed discount

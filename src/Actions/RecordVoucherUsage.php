@@ -111,10 +111,8 @@ final class RecordVoucherUsage
             if ($lockedVoucher->usage_limit !== null) {
                 $newUsageCount = VoucherUsage::where('voucher_id', $lockedVoucher->id)->count();
                 if ($newUsageCount >= $lockedVoucher->usage_limit) {
-                    $lockedVoucher->update([
-                        'status' => Depleted::class,
-                        'depleted_at' => CarbonImmutable::now(),
-                    ]);
+                    $lockedVoucher->status->transitionTo(Depleted::class);
+                    $lockedVoucher->save();
                 }
             }
 

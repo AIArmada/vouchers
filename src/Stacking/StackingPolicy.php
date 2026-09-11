@@ -41,27 +41,6 @@ class StackingPolicy implements StackingPolicyInterface
     ) {}
 
     /**
-     * Create a default policy with sensible rules.
-     */
-    public static function default(): self
-    {
-        return new self(
-            mode: StackingMode::Sequential,
-            rules: [
-                ['type' => StackingRuleType::MaxVouchers->value, 'value' => 3],
-                ['type' => StackingRuleType::MaxDiscountPercentage->value, 'value' => 50],
-                ['type' => StackingRuleType::TypeRestriction->value, 'max_per_type' => [
-                    'percentage' => 1,
-                    'fixed' => 2,
-                    'free_shipping' => 1,
-                ]],
-            ],
-            autoOptimize: false,
-            autoReplace: true,
-        );
-    }
-
-    /**
      * Create a policy from configuration array.
      *
      * @param  array<string, mixed>  $config
@@ -76,34 +55,6 @@ class StackingPolicy implements StackingPolicyInterface
             rules: $config['rules'] ?? [],
             autoOptimize: (bool) ($config['auto_optimize'] ?? false),
             autoReplace: (bool) ($config['auto_replace'] ?? true),
-        );
-    }
-
-    /**
-     * Create a policy that only allows a single voucher.
-     */
-    public static function singleVoucher(): self
-    {
-        return new self(
-            mode: StackingMode::None,
-            rules: [
-                ['type' => StackingRuleType::MaxVouchers->value, 'value' => 1],
-            ],
-            autoOptimize: false,
-            autoReplace: true,
-        );
-    }
-
-    /**
-     * Create an unlimited stacking policy (use with caution).
-     */
-    public static function unlimited(): self
-    {
-        return new self(
-            mode: StackingMode::Sequential,
-            rules: [],
-            autoOptimize: true,
-            autoReplace: false,
         );
     }
 

@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\Activitylog\Support\LogOptions;
 use Spatie\ModelStates\HasStates;
@@ -44,7 +45,7 @@ use Spatie\ModelStates\HasStates;
  * @property int|null $max_discount Value in cents
  * @property int|null $usage_limit
  * @property int|null $usage_limit_per_user
- * @property int $applied_count Number of times the voucher has been applied to carts
+ * @property int $applied_count Canonical denormalized count of cart applications
  * @property bool $allows_manual_redemption
  * @property string|null $owner_type
  * @property int|string|null $owner_id
@@ -64,7 +65,7 @@ use Spatie\ModelStates\HasStates;
  * @property string|null $affiliate_program_id
  * @property CommissionType|null $affiliate_commission_type
  * @property int|null $affiliate_commission_value
- * @property list<array{level: int, type?: string, value?: int|float, share?: float}>|null $affiliate_upline_levels
+ * @property list<array{level: int, type?: string, value?: int, share?: float}>|null $affiliate_upline_levels
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * @property-read int $times_used
@@ -243,6 +244,34 @@ class Voucher extends Model implements Auditable
         return $this->status instanceof Active;
     }
 
+    /**
+     * Scope vouchers that are active and inside their wall-clock window.
+     *
+     * @param  Builder<Voucher>  $query
+     * @return Builder<Voucher>
+     */
+    public function scopeLive(Builder $query): Builder
+    {
+        $now = CarbonImmutable::now();
+        $usageTable = (new VoucherUsage)->getTable();
+        $voucherTable = $this->getTable();
+
+        return $query
+            ->where('status', VoucherStatus::normalize(Active::class))
+            ->where(function (Builder $builder) use ($now): void {
+                $builder->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
+            })
+            ->where(function (Builder $builder) use ($now): void {
+                $builder->whereNull('expires_at')->orWhere('expires_at', '>', $now);
+            })
+            ->where(function (Builder $builder) use ($usageTable, $voucherTable): void {
+                $builder->whereNull('usage_limit')
+                    ->orWhereRaw(
+                        "(select count(*) from {$usageTable} where {$usageTable}.voucher_id = {$voucherTable}.id) < {$voucherTable}.usage_limit"
+                    );
+            });
+    }
+
     public function isExpired(): bool
     {
         /** @var Carbon|null $expiresAt */
@@ -293,7 +322,12 @@ class Voucher extends Model implements Auditable
         $usageLimit = $this->getAttribute('usage_limit');
 
         if ($usageLimit && $this->getTimesUsedAttribute() >= $usageLimit) {
-            $this->update(['status' => Depleted::class]);
+            if ($this->status instanceof Depleted) {
+                return;
+            }
+
+            $this->status->transitionTo(Depleted::class);
+            $this->save();
         }
     }
 
@@ -351,6 +385,10 @@ class Voucher extends Model implements Auditable
         ];
     }
 
+    /**
+     * Redemption truth comes from voucher_usage rows. The usages_count value
+     * is only a query optimization populated by QueriesVouchers.
+     */
     public function getTimesUsedAttribute(): int
     {
         if (array_key_exists('usages_count', $this->attributes)) {
@@ -558,7 +596,10 @@ class Voucher extends Model implements Auditable
     {
         self::saving(function (Voucher $voucher): void {
             if ($voucher->isDirty('status')) {
-                $originalStatus = $voucher->getOriginal('status');
+                $originalStatus = VoucherStatus::fromString(
+                    (string) $voucher->getRawOriginal('status'),
+                    $voucher,
+                );
 
                 if ($voucher->status instanceof Paused && (! $originalStatus instanceof Paused)) {
                     $voucher->paused_at = CarbonImmutable::now();
@@ -581,6 +622,11 @@ class Voucher extends Model implements Auditable
             $voucher->usages()->delete();
             $voucher->walletEntries()->delete();
         });
+    }
+
+    public function delete(): ?bool
+    {
+        return DB::transaction(fn (): ?bool => parent::delete());
     }
 
     protected function casts(): array

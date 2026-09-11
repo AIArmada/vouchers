@@ -43,7 +43,7 @@ class VoucherData extends Data
      * @param  int|null  $affiliateCommissionValue  Override commission rate (basis points or cents)
      * @param  string|null  $affiliateId  Native affiliate linked to the voucher
      * @param  string|null  $affiliateProgramId  Associated affiliate program ID
-     * @param  list<array{level: int, type?: string, value?: int|float, share?: float}>|null  $affiliateUplineLevels  Upline override levels
+     * @param  list<array{level: int, type?: string, value?: int, share?: float}>|null  $affiliateUplineLevels  Upline override levels
      */
     public function __construct(
         public readonly string $id,
@@ -149,6 +149,15 @@ class VoucherData extends Data
         self::validateIntegerField($data, 'minCartValue', 'cents');
         self::validateIntegerField($data, 'max_discount', 'cents');
         self::validateIntegerField($data, 'maxDiscount', 'cents');
+        self::validateIntegerField($data, 'credit_delay_hours', 'hours');
+        self::validateIntegerField($data, 'creditDelayHours', 'hours');
+        self::validateIntegerField($data, 'usage_limit', 'uses');
+        self::validateIntegerField($data, 'usageLimit', 'uses');
+        self::validateIntegerField($data, 'usage_limit_per_user', 'uses per user');
+        self::validateIntegerField($data, 'usageLimitPerUser', 'uses per user');
+        self::validateIntegerField($data, 'affiliate_commission_value', 'basis points or cents');
+        self::validateIntegerField($data, 'affiliateCommissionValue', 'basis points or cents');
+        self::validateAffiliateUplineLevels($data['affiliate_upline_levels'] ?? $data['affiliateUplineLevels'] ?? null);
 
         // Normalize enums if passed as strings
         $type = $data['type'] ?? VoucherType::Fixed;
@@ -326,7 +335,7 @@ class VoucherData extends Data
      *
      * @param  array<string, mixed>  $data
      *
-     * @throws InvalidVoucherDataException If a non-integer float is passed
+     * @throws InvalidVoucherDataException If a float is passed
      */
     private static function validateIntegerField(array $data, string $field, string $description): void
     {
@@ -336,8 +345,37 @@ class VoucherData extends Data
 
         $value = $data[$field];
 
-        if (is_float($value) && $value !== floor($value)) {
+        if (is_float($value)) {
             throw InvalidVoucherDataException::floatNotAllowed($field, $value, $description);
+        }
+    }
+
+    /**
+     * Validate integer upline fields while preserving the affiliate contract
+     * that represents commission shares as decimal ratios.
+     */
+    private static function validateAffiliateUplineLevels(mixed $levels): void
+    {
+        if (! is_array($levels)) {
+            return;
+        }
+
+        foreach ($levels as $index => $level) {
+            if (! is_array($level)) {
+                continue;
+            }
+
+            foreach (['level' => 'level', 'value' => 'cents or basis points'] as $field => $description) {
+                $value = $level[$field] ?? null;
+
+                if (is_float($value)) {
+                    throw InvalidVoucherDataException::floatNotAllowed(
+                        "affiliate_upline_levels.{$index}.{$field}",
+                        $value,
+                        $description,
+                    );
+                }
+            }
         }
     }
 

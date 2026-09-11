@@ -17,14 +17,20 @@ trait QueriesVouchers
     use NormalizesVoucherCodes;
 
     /**
+     * Build an owner-scoped voucher query with the redemption counter
+     * preloaded. `times_used` is derived from voucher_usage rows; the count
+     * avoids an N+1 query on list and statistics surfaces.
+     *
      * @return Builder<Voucher>
      */
     protected function voucherQuery(): Builder
     {
-        return Voucher::query()->forOwner(
-            $this->resolveOwner(),
-            $this->shouldIncludeGlobal()
-        );
+        return Voucher::query()
+            ->withCount('usages')
+            ->forOwner(
+                $this->resolveOwner(),
+                $this->shouldIncludeGlobal()
+            );
     }
 
     protected function resolveOwner(): ?Model

@@ -6,6 +6,7 @@ namespace AIArmada\Vouchers\Actions;
 
 use AIArmada\Vouchers\Concerns\NormalizesVoucherCodes;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
+use AIArmada\Vouchers\States\VoucherStatus;
 use AIArmada\Vouchers\Support\VoucherAffiliateOwnershipGuard;
 use Lorisleiva\Actions\Concerns\AsAction;
 
@@ -31,7 +32,16 @@ final class UpdateVoucher
 
         $data = VoucherAffiliateOwnershipGuard::sanitize($data);
 
+        $status = $data['status'] ?? null;
+        unset($data['status']);
+
         $voucher->update($data);
+
+        if (is_string($status) && VoucherStatus::normalize($status) !== $voucher->status->getValue()) {
+            $targetStatus = VoucherStatus::fromString($status, $voucher);
+            $voucher->status->transitionTo($targetStatus::class);
+            $voucher->save();
+        }
 
         $fresh = $voucher->fresh();
 

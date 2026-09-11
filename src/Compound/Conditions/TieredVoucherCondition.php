@@ -183,10 +183,7 @@ class TieredVoucherCondition extends CompoundVoucherCondition
         $discount = mb_trim($discount);
 
         if (str_ends_with($discount, '%')) {
-            // Percentage discount
-            $percent = abs((float) str_replace(['%', '-', '+'], '', $discount));
-
-            return (int) round($baseValue * ($percent / 100));
+            return $this->calculatePercentageAmount($baseValue, $discount);
         }
 
         // Fixed discount

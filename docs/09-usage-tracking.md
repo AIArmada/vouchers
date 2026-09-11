@@ -6,7 +6,7 @@ title: Usage Tracking
 
 Use this page when you need the reporting and analytics side of vouchers rather than the creation flow itself.
 
-The vouchers package tracks voucher applications and redemptions for analytics and reporting.
+The vouchers package tracks voucher applications and redemptions for analytics and reporting. These are intentionally different counters: `applied_count` is the application funnel, while `times_used` is derived from `voucher_usage` redemption rows.
 
 ## Application Tracking
 
@@ -19,14 +19,14 @@ When a voucher is applied to a cart, the `applied_count` is incremented:
 ],
 ```
 
-This allows tracking how many times a voucher was *considered* vs actually *used*.
+This allows tracking how many times a voucher was *applied to a cart* vs actually *redeemed*. Recording a redemption never increments `applied_count`; the `VoucherApplied` event listener is its only writer.
 
 ## Voucher Statistics
 
 ```php
 use AIArmada\Vouchers\Models\Voucher;
 
-$voucher = Voucher::where('code', 'SUMMER2024')->first();
+$voucher = Voucher::query()->withCount('usages')->where('code', 'SUMMER2024')->first();
 
 // Get comprehensive statistics
 $stats = $voucher->getStatistics();
@@ -213,7 +213,7 @@ class VoucherDashboardController extends Controller
     {
         return view('dashboard.vouchers', [
             // Summary stats
-            'totalActive' => Voucher::where('status', 'active')->count(),
+            'totalActive' => Voucher::live()->count(),
             'totalRedemptions' => VoucherUsage::count(),
             'totalDiscountGiven' => VoucherUsage::sum('discount_amount'),
             
@@ -237,7 +237,7 @@ class VoucherDashboardController extends Controller
                 ->take(5),
             
             // Expiring soon
-            'expiringSoon' => Voucher::where('status', 'active')
+            'expiringSoon' => Voucher::live()
                 ->where('expires_at', '<=', now()->addWeek())
                 ->where('expires_at', '>', now())
                 ->get(),

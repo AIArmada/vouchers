@@ -221,6 +221,45 @@ abstract class CompoundVoucherCondition implements Arrayable, CartConditionConve
     }
 
     /**
+     * Calculate a percentage of a minor-unit amount without converting money
+     * to a float.
+     *
+     * Compound configuration stores percentages as strings because the cart
+     * condition DSL uses values such as "-10%". Convert that rate to basis
+     * points once, then round the minor-unit result half up.
+     */
+    protected function calculatePercentageAmount(int $baseValue, string $percentage): int
+    {
+        $basisPoints = $this->parsePercentageBasisPoints($percentage);
+
+        return intdiv(($baseValue * $basisPoints) + 5000, 10000);
+    }
+
+    /**
+     * Parse a signed percentage string into basis points.
+     */
+    protected function parsePercentageBasisPoints(string $percentage): int
+    {
+        $value = mb_trim($percentage);
+        $value = mb_rtrim($value, '%');
+        $value = mb_trim($value);
+
+        if (! preg_match('/^[+-]?(\d+)(?:\.(\d+))?$/', $value, $matches)) {
+            return 0;
+        }
+
+        $fraction = $matches[2] ?? '';
+        $basisPoints = ((int) $matches[1] * 100)
+            + (int) mb_str_pad(mb_substr($fraction, 0, 2), 2, '0');
+
+        if (mb_strlen($fraction) > 2 && (int) mb_substr($fraction, 2, 1) >= 5) {
+            $basisPoints++;
+        }
+
+        return $basisPoints;
+    }
+
+    /**
      * Create a product matcher from config.
      */
     protected function createMatcher(array $config): ProductMatcherInterface

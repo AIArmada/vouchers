@@ -58,6 +58,8 @@ Use `VOUCHERS_TABLE_PREFIX` when you need a package-specific prefix. JSON column
 
 `stacking.mode` is the main operator-facing switch. The package also ships default guardrails for count, max discount percentage, and per-type restrictions.
 
+`StackingPolicy::fromConfig()` is the sole policy construction path. The effective shipped default is sequential application, one voucher per cart, a 50% combined-discount cap, and automatic replacement enabled; removed convenience factories must not be used to bypass this configuration.
+
 
 
 ### Default Registered Rules
@@ -135,6 +137,8 @@ Application tracking increments voucher analytics when a code is applied, even b
 - `include_global` is intentionally `false` by default, so owner queries do not silently mix in global vouchers.
 - `auto_assign_on_create` keeps new vouchers inside the current owner boundary when owner mode is on.
 
+Domain query helpers resolve the current owner from `OwnerContext`. Cross-owner jobs, commands, and administration must wrap each operation in `OwnerContext::withOwner($owner, ...)`; global work must use `OwnerContext::withOwner(null, ...)` explicitly.
+
 ## Redemption
 
 ```php
@@ -168,6 +172,16 @@ This controls whether checkout should stop immediately when a voucher becomes in
 When the checkout package is installed, voucher codes are revalidated on its
 `CheckoutStarted` event; invalid codes are removed, and this option can block
 the checkout with a `VoucherValidationException`.
+
+## Expiry processing
+
+Wall-clock expiry is represented by `Voucher::isExpired()` and the `live()` scope. Schedule the package command to reconcile the indexed `Expired` status:
+
+```cron
+* * * * * php artisan vouchers:expire
+```
+
+Use `php artisan vouchers:expire --dry-run` to inspect the work without changing status. Depletion and expiry transitions go through the voucher state machine.
 
 ## Affiliates Integration
 

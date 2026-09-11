@@ -153,6 +153,7 @@ trait InteractsWithVouchers
 
         if ($cart->getDynamicConditions()->has($conditionName)) {
             $cart->removeDynamicCondition($conditionName);
+            $cart->removeCondition($conditionName);
         } else {
             $cart->removeCondition($conditionName);
         }
@@ -241,10 +242,10 @@ trait InteractsWithVouchers
      */
     public function getVoucherDiscount(): float
     {
-        $discount = 0.0;
+        $discount = 0;
         $cart = $this->getUnderlyingCart();
         $subtotalMoney = $cart->subtotal();
-        $baseValue = (float) $subtotalMoney->getAmount();
+        $baseValue = (int) $subtotalMoney->getAmount();
         $policy = $this->getStackingPolicy();
         $mode = $policy->getMode();
 
@@ -260,7 +261,7 @@ trait InteractsWithVouchers
             }
         }
 
-        return $discount;
+        return (float) $discount;
     }
 
     /**

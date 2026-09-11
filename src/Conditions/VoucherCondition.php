@@ -228,11 +228,28 @@ class VoucherCondition implements Arrayable, CartConditionConvertible
     }
 
     /**
-     * Get calculated value for display
+     * Calculate the checkout discount in integer minor units.
+     *
+     * The cart bridge still exposes `apply(float)` for the frozen cart
+     * contract, but checkout and stacking callers use this exact path.
      */
-    public function getCalculatedValue(float $baseValue): float
+    public function getCalculatedValue(int $baseValue): int
     {
-        return $this->apply($baseValue) - $baseValue;
+        if ($baseValue <= 0 || $this->isFreeShipping()) {
+            return 0;
+        }
+
+        $discount = match ($this->voucher->type) {
+            VoucherType::Percentage => intdiv(($baseValue * $this->voucher->value) + 5000, 10000),
+            VoucherType::Fixed => min($baseValue, $this->voucher->value),
+            default => 0,
+        };
+
+        if ($this->voucher->maxDiscount !== null) {
+            $discount = min($discount, $this->voucher->maxDiscount);
+        }
+
+        return -$discount;
     }
 
     /**

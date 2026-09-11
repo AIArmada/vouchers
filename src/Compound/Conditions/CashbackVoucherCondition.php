@@ -193,7 +193,7 @@ class CashbackVoucherCondition extends CompoundVoucherCondition
      */
     protected function calculatePercentageCashback(int $baseValue, int $rate): int
     {
-        return (int) round($baseValue * ($rate / 10000));
+        return intdiv(($baseValue * $rate) + 5000, 10000);
     }
 
     /**

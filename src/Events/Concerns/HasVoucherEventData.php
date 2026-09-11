@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Events\Concerns;
 
+use AIArmada\Vouchers\Enums\VoucherType;
 use DateTimeImmutable;
 use Illuminate\Support\Str;
 
@@ -96,8 +97,11 @@ trait HasVoucherEventData
      */
     public function getDiscountAmountCents(): ?int
     {
-        // VoucherData stores value as a float (can be cents or percentage depending on type)
-        return (int) ($this->voucher->value * 100);
+        if ($this->voucher->type !== VoucherType::Fixed) {
+            return null;
+        }
+
+        return $this->voucher->value;
     }
 
     /**

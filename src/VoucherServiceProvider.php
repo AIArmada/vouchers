@@ -11,6 +11,7 @@ use AIArmada\Cart\Facades\Cart as CartFacade;
 use AIArmada\Cart\Services\CartConditionResolver;
 use AIArmada\Vouchers\Cart\VoucherConditionProvider;
 use AIArmada\Vouchers\Conditions\VoucherCondition;
+use AIArmada\Vouchers\Console\Commands\ExpireVouchersCommand;
 use AIArmada\Vouchers\Contracts\VoucherServiceInterface;
 use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Events\VoucherApplied;
@@ -104,6 +105,10 @@ final class VoucherServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        if ($this->app->runningInConsole()) {
+            $this->commands([ExpireVouchersCommand::class]);
+        }
+
         Event::listen(VoucherApplied::class, IncrementVoucherAppliedCount::class);
 
         $checkoutStartedEvent = 'AIArmada\\Checkout\\Events\\CheckoutStarted';

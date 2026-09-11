@@ -39,7 +39,7 @@ final class MaxDiscountPercentageRule implements StackingRuleInterface
         }
 
         $currentDiscount = $existingVouchers->sum(
-            fn (VoucherCondition $v): float => abs($v->getCalculatedValue($cartSubtotal))
+            fn (VoucherCondition $v): int => abs($v->getCalculatedValue($cartSubtotal))
         );
 
         $newDiscount = abs($newVoucher->getCalculatedValue($cartSubtotal));
@@ -66,10 +66,10 @@ final class MaxDiscountPercentageRule implements StackingRuleInterface
         return self::PRIORITY;
     }
 
-    private function getCartSubtotal(Cart $cart): float
+    private function getCartSubtotal(Cart $cart): int
     {
         $subtotal = $cart->subtotal();
 
-        return (float) $subtotal->getAmount();
+        return (int) $subtotal->getAmount();
     }
 }
