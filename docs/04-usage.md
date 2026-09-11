@@ -110,6 +110,20 @@ $voucher = Voucher::create([
 ]);
 ```
 
+### Invalidating provider updates
+
+Voucher model writes clear cached lookups automatically. If a provider writes directly to the vouchers table, invalidate the current owner-scoped lookup after the write:
+
+```php
+use AIArmada\Vouchers\Facades\Voucher;
+
+$provider->updateVoucher($code, $attributes);
+
+Voucher::invalidate($code);
+```
+
+Before invalidation, an existing cached lookup may still return the prior `VoucherData`; the next lookup after invalidation reads the provider's current values.
+
 ## Promotion-linked vouchers
 
 Vouchers can be linked back to a source promotion through `promotion_id`.

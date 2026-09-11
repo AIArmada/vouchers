@@ -19,6 +19,7 @@ use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
 use AIArmada\Vouchers\States\Active;
+use AIArmada\Vouchers\Support\VoucherLookupCache;
 use Akaunting\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -31,16 +32,26 @@ class VoucherService implements VoucherServiceInterface
     use QueriesVouchers;
 
     public function __construct(
-        protected VoucherValidator $validator
+        protected VoucherValidator $validator,
+        private readonly VoucherLookupCache $lookupCache,
     ) {}
 
     public function find(string $code): ?VoucherData
     {
-        $voucher = $this->voucherQuery()
-            ->where('code', $this->normalizeCode($code))
-            ->first();
+        $normalizedCode = $this->normalizeCode($code);
 
-        return $voucher ? VoucherData::fromModel($voucher) : null;
+        return $this->lookupCache->remember(
+            $normalizedCode,
+            $this->resolveOwner(),
+            $this->shouldIncludeGlobal(),
+            function () use ($normalizedCode): ?VoucherData {
+                $voucher = $this->voucherQuery()
+                    ->where('code', $normalizedCode)
+                    ->first();
+
+                return $voucher ? VoucherData::fromModel($voucher) : null;
+            },
+        );
     }
 
     public function findOrFail(string $code): VoucherData
@@ -52,6 +63,11 @@ class VoucherService implements VoucherServiceInterface
         }
 
         return $voucher;
+    }
+
+    public function invalidate(string $code): void
+    {
+        $this->lookupCache->forget($this->normalizeCode($code), $this->resolveOwner());
     }
 
     /**

@@ -28,6 +28,14 @@ interface VoucherServiceInterface
     public function findOrFail(string $code): VoucherData;
 
     /**
+     * Invalidate a cached lookup in the current owner scope.
+     *
+     * Eloquent writes invalidate automatically; call this after an out-of-band
+     * provider write.
+     */
+    public function invalidate(string $code): void;
+
+    /**
      * Create a new voucher.
      *
      * @param  array<string, mixed>  $data

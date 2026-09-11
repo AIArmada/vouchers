@@ -123,6 +123,18 @@ These checks are on by default. If you relax them, do it deliberately and docume
 
 Application tracking increments voucher analytics when a code is applied, even before redemption completes.
 
+## Lookup Cache
+
+```php
+'cache' => [
+    'lookup_ttl' => 300,
+],
+```
+
+`VoucherService::find()` caches positive `VoucherData` lookups for the configured number of seconds. Eloquent voucher creates, updates, code changes, and deletes invalidate their owner-scoped lookup automatically. Providers that update the vouchers table outside Eloquent must call `VoucherService::invalidate($code)` after the write; until then, a cached lookup remains stale by contract. Set `lookup_ttl` to `0` or a negative value to disable the lookup cache.
+
+When owner scoping is enabled, cache keys include the current owner. Global-inclusive lookups bypass this cache because a global fallback can affect multiple owner scopes.
+
 ## Owner Scoping
 
 ```php

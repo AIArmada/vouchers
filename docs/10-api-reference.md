@@ -26,6 +26,16 @@ Returns `VoucherData` or `null` if not found.
 
 ---
 
+#### invalidate
+
+Invalidate a cached lookup in the current owner scope. Eloquent voucher writes do this automatically; call it after an out-of-band provider write.
+
+```php
+Voucher::invalidate(string $code): void
+```
+
+---
+
 #### findOrFail
 
 Find a voucher by code or throw exception.

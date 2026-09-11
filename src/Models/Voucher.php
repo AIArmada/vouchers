@@ -17,6 +17,7 @@ use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
 use AIArmada\Vouchers\States\Paused;
 use AIArmada\Vouchers\States\VoucherStatus;
+use AIArmada\Vouchers\Support\VoucherLookupCache;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -595,6 +596,13 @@ class Voucher extends Model implements Auditable
     protected static function booted(): void
     {
         self::saving(function (Voucher $voucher): void {
+            if ($voucher->exists && $voucher->isDirty('code')) {
+                app(VoucherLookupCache::class)->forgetForVoucher(
+                    $voucher,
+                    (string) $voucher->getRawOriginal('code'),
+                );
+            }
+
             if ($voucher->isDirty('status')) {
                 $originalStatus = VoucherStatus::fromString(
                     (string) $voucher->getRawOriginal('status'),
@@ -612,6 +620,10 @@ class Voucher extends Model implements Auditable
             }
         });
 
+        self::saved(function (Voucher $voucher): void {
+            app(VoucherLookupCache::class)->forgetForVoucher($voucher);
+        });
+
         self::creating(function (Voucher $voucher): void {
             if ($voucher->status instanceof Active) {
                 $voucher->last_activated_at = CarbonImmutable::now();
@@ -619,6 +631,7 @@ class Voucher extends Model implements Auditable
         });
 
         self::deleting(function (Voucher $voucher): void {
+            app(VoucherLookupCache::class)->forgetForVoucher($voucher);
             $voucher->usages()->delete();
             $voucher->walletEntries()->delete();
         });
