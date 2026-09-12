@@ -71,7 +71,6 @@ return new class extends Migration
             $table->timestampsTz();
 
             // Indexes
-            $table->index('code');
             $table->index('status');
             $table->index(['starts_at', 'expires_at']);
             // Note: nullableUuidMorphs('owner') already creates index on ['owner_type', 'owner_id']
