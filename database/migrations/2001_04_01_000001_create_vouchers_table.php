@@ -18,7 +18,7 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['vouchers'] ?? $prefix . 'vouchers';
 
-        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
+        Schema::create($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->nullableUuidMorphs('owner');
             $table->string('code')->unique();
@@ -94,10 +94,10 @@ return new class extends Migration
             $jsonColumnType === 'jsonb'
             && ConnectionDriver::name(Schema::getConnection()) === 'pgsql'
         ) {
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_stacking_rules_gin_index ON \"{$tableName}\" USING GIN (\"stacking_rules\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS vouchers_exclusion_groups_gin_index ON \"{$tableName}\" USING GIN (\"exclusion_groups\")");
+            DB::statement("CREATE INDEX vouchers_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
+            DB::statement("CREATE INDEX vouchers_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
+            DB::statement("CREATE INDEX vouchers_stacking_rules_gin_index ON \"{$tableName}\" USING GIN (\"stacking_rules\")");
+            DB::statement("CREATE INDEX vouchers_exclusion_groups_gin_index ON \"{$tableName}\" USING GIN (\"exclusion_groups\")");
         }
     }
 

@@ -17,7 +17,7 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['voucher_usage'] ?? $prefix . 'voucher_usage';
 
-        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
+        Schema::create($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('voucher_id');
             $table->string('idempotency_key', 64)->nullable();
@@ -48,8 +48,8 @@ return new class extends Migration
             $jsonColumnType === 'jsonb'
             && ConnectionDriver::name(Schema::getConnection()) === 'pgsql'
         ) {
-            DB::statement("CREATE INDEX IF NOT EXISTS voucher_usage_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
-            DB::statement("CREATE INDEX IF NOT EXISTS voucher_usage_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
+            DB::statement("CREATE INDEX voucher_usage_metadata_gin_index ON \"{$tableName}\" USING GIN (\"metadata\")");
+            DB::statement("CREATE INDEX voucher_usage_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
         }
     }
 

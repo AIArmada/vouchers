@@ -16,7 +16,7 @@ return new class extends Migration
         $prefix = (string) config('vouchers.database.table_prefix', '');
         $tableName = $tables['voucher_wallets'] ?? $prefix . 'voucher_wallets';
 
-        commerce_schema_create_if_missing($tableName, function (Blueprint $table): void {
+        Schema::create($tableName, function (Blueprint $table): void {
             $jsonType = commerce_json_column_type('vouchers', 'jsonb');
 
             $table->uuid('id')->primary();
@@ -37,7 +37,7 @@ return new class extends Migration
             $table->index(['voucher_id', 'claimed_at', 'redeemed_at'], 'voucher_wallets_available_idx');
         });
 
-        DB::statement("CREATE UNIQUE INDEX IF NOT EXISTS voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");
+        DB::statement("CREATE UNIQUE INDEX voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");
     }
 
     public function down(): void
