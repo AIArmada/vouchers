@@ -92,6 +92,14 @@ if ($result->isValid) {
 }
 ```
 
+`ValidateVoucherCode` is the validation entrypoint. `VoucherData::fromArray()` rejects floats via `InvalidVoucherDataException::floatNotAllowed` — pass integer minor units only:
+
+```php
+use AIArmada\Vouchers\Data\VoucherData;
+
+$data = VoucherData::fromArray(['code' => 'FLAT50', 'value' => 5000]); // cents, not 50.00
+```
+
 ## Creating vouchers
 
 Use the `Voucher` facade to create vouchers:
