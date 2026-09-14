@@ -167,6 +167,13 @@ class VoucherValidator
             return (int) $total;
         }
 
+        // Unknown cart shapes fail closed: a zero total can never satisfy a
+        // minimum cart value requirement. Log at debug level so new caller
+        // shapes are visible without failing validation outright.
+        Log::debug('Voucher cart total fell back to zero for an unknown cart shape', [
+            'shape' => is_object($cart) ? $cart::class : get_debug_type($cart),
+        ]);
+
         return 0;
     }
 

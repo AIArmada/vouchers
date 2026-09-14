@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\JoinClause;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use OwenIt\Auditing\Contracts\Auditable;
@@ -254,22 +255,29 @@ class Voucher extends Model implements Auditable
     public function scopeLive(Builder $query): Builder
     {
         $now = CarbonImmutable::now();
-        $usageTable = (new VoucherUsage)->getTable();
         $voucherTable = $this->getTable();
 
+        // Aggregate usage counts once and join them in, instead of running a
+        // correlated count subquery for every candidate row.
+        $usageCounts = VoucherUsage::query()
+            ->select('voucher_id')
+            ->selectRaw('COUNT(*) as usage_count')
+            ->groupBy('voucher_id');
+
         return $query
-            ->where('status', VoucherStatus::normalize(Active::class))
+            ->where($voucherTable . '.status', VoucherStatus::normalize(Active::class))
             ->where(function (Builder $builder) use ($now): void {
                 $builder->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
             })
             ->where(function (Builder $builder) use ($now): void {
                 $builder->whereNull('expires_at')->orWhere('expires_at', '>', $now);
             })
-            ->where(function (Builder $builder) use ($usageTable, $voucherTable): void {
-                $builder->whereNull('usage_limit')
-                    ->orWhereRaw(
-                        "(select count(*) from {$usageTable} where {$usageTable}.voucher_id = {$voucherTable}.id) < {$voucherTable}.usage_limit"
-                    );
+            ->leftJoinSub($usageCounts, 'voucher_usage_counts', static function (JoinClause $join) use ($voucherTable): void {
+                $join->on('voucher_usage_counts.voucher_id', '=', $voucherTable . '.id');
+            })
+            ->where(function (Builder $builder) use ($voucherTable): void {
+                $builder->whereNull($voucherTable . '.usage_limit')
+                    ->orWhereRaw("COALESCE(voucher_usage_counts.usage_count, 0) < {$voucherTable}.usage_limit");
             });
     }
 

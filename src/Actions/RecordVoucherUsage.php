@@ -16,6 +16,7 @@ use Akaunting\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Lorisleiva\Actions\Concerns\AsAction;
 
 /**
@@ -52,6 +53,8 @@ final class RecordVoucherUsage
             if (! $lockedVoucher) {
                 throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
             }
+
+            $this->assertCurrencyMatches($lockedVoucher, $discountAmount);
 
             $idempotencyKey = $this->resolveIdempotencyKey($metadata);
 
@@ -122,22 +125,39 @@ final class RecordVoucherUsage
         });
     }
 
+    private function assertCurrencyMatches(VoucherModel $voucher, Money $discountAmount): void
+    {
+        $voucherCurrency = $voucher->currency;
+
+        if (! is_string($voucherCurrency) || $voucherCurrency === '') {
+            return;
+        }
+
+        $usageCurrency = $discountAmount->getCurrency()->getCurrency();
+
+        if (mb_strtoupper($usageCurrency) !== mb_strtoupper($voucherCurrency)) {
+            throw ValidationException::withMessages([
+                'currency' => "The usage currency ({$usageCurrency}) does not match the voucher currency ({$voucherCurrency}).",
+            ]);
+        }
+    }
+
     /**
      * @param  array<string, mixed>|null  $metadata
      */
     private function resolveIdempotencyKey(?array $metadata): ?string
     {
-        $value = data_get($metadata, 'idempotency_key');
+        foreach (['idempotency_key', 'order_id', 'reference'] as $key) {
+            $value = data_get($metadata, $key);
 
-        if (! is_scalar($value) || mb_trim((string) $value) === '') {
-            $value = data_get($metadata, 'order_id');
+            if (is_scalar($value) && mb_trim((string) $value) !== '') {
+                return hash('sha256', (string) $value);
+            }
         }
 
-        if (! is_scalar($value) || mb_trim((string) $value) === '') {
-            return null;
-        }
-
-        return hash('sha256', (string) $value);
+        // Without caller-provided context there is nothing to dedupe on;
+        // the usage is recorded without an idempotency key by design.
+        return null;
     }
 
     private function findVoucher(string $code): VoucherModel

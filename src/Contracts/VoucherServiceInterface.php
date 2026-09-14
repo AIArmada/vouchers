@@ -86,7 +86,7 @@ interface VoucherServiceInterface
      *
      * @return EloquentCollection<int, VoucherUsage>
      */
-    public function getUsageHistory(string $code): EloquentCollection;
+    public function getUsageHistory(string $code, int $limit = 100): EloquentCollection;
 
     /**
      * Add a voucher to a user's wallet.

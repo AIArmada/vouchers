@@ -27,38 +27,43 @@ final class ExpireVouchersCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $processed = 0;
 
-        Voucher::query()
-            ->withoutOwnerScope()
-            ->whereIn('status', [
-                VoucherStatus::normalize(Active::class),
-                VoucherStatus::normalize(Paused::class),
-            ])
-            ->whereNotNull('expires_at')
-            ->where('expires_at', '<=', $now)
-            ->chunkById(100, function ($vouchers) use ($dryRun, $expireVoucher, &$processed): void {
-                foreach ($vouchers as $voucher) {
-                    $processed++;
+        // System maintenance enumerates vouchers across owners, so the scan
+        // runs in explicit global context; each expiry still executes under
+        // the voucher's own owner context below.
+        OwnerContext::withOwner(null, function () use ($now, $dryRun, $expireVoucher, &$processed): void {
+            Voucher::query()
+                ->withoutOwnerScope()
+                ->whereIn('status', [
+                    VoucherStatus::normalize(Active::class),
+                    VoucherStatus::normalize(Paused::class),
+                ])
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<=', $now)
+                ->chunkById(100, function ($vouchers) use ($dryRun, $expireVoucher, &$processed): void {
+                    foreach ($vouchers as $voucher) {
+                        $processed++;
 
-                    if ($dryRun) {
-                        $this->line("Would expire {$voucher->code}");
+                        if ($dryRun) {
+                            $this->line("Would expire {$voucher->code}");
 
-                        continue;
+                            continue;
+                        }
+
+                        try {
+                            $owner = OwnerTupleParser::fromTypeAndId(
+                                $voucher->owner_type,
+                                $voucher->owner_id,
+                            )->toOwnerModel();
+
+                            OwnerContext::withOwner($owner, function () use ($expireVoucher, $voucher): void {
+                                $expireVoucher->handle($voucher->code);
+                            });
+                        } catch (Throwable $exception) {
+                            $this->warn("Unable to expire {$voucher->code}: {$exception->getMessage()}");
+                        }
                     }
-
-                    try {
-                        $owner = OwnerTupleParser::fromTypeAndId(
-                            $voucher->owner_type,
-                            $voucher->owner_id,
-                        )->toOwnerModel();
-
-                        OwnerContext::withOwner($owner, function () use ($expireVoucher, $voucher): void {
-                            $expireVoucher->handle($voucher->code);
-                        });
-                    } catch (Throwable $exception) {
-                        $this->warn("Unable to expire {$voucher->code}: {$exception->getMessage()}");
-                    }
-                }
-            });
+                });
+        });
 
         $verb = $dryRun ? 'Found' : 'Expired';
         $this->info("{$verb} {$processed} voucher(s).");

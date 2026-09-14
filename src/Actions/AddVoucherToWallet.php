@@ -10,6 +10,7 @@ use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherWallet;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Lorisleiva\Actions\Concerns\AsAction;
 
@@ -31,25 +32,53 @@ final class AddVoucherToWallet
         return DB::transaction(function () use ($code, $holder, $metadata): VoucherWallet {
             $voucher = $this->findVoucher($code);
 
-            // Check if already in wallet
+            // Serialize concurrent claims per voucher. The row lock also
+            // enforces the one-active-entry rule on drivers without partial
+            // unique index support (MySQL).
+            $this->voucherQuery()
+                ->whereKey($voucher->id)
+                ->lockForUpdate()
+                ->first();
+
+            // An already-active entry is returned as-is; a redeemed entry
+            // does not block a fresh claim.
             $existing = VoucherWallet::where('voucher_id', $voucher->id)
                 ->where('holder_type', $holder->getMorphClass())
                 ->where('holder_id', $holder->getKey())
+                ->whereNull('redeemed_at')
                 ->first();
 
-            if ($existing) {
+            if ($existing instanceof VoucherWallet) {
                 return $existing;
             }
 
-            return VoucherWallet::create([
-                'voucher_id' => $voucher->id,
-                'holder_type' => $holder->getMorphClass(),
-                'holder_id' => $holder->getKey(),
-                'owner_type' => $voucher->owner_type,
-                'owner_id' => $voucher->owner_id,
-                'claimed_at' => CarbonImmutable::now(),
-                'metadata' => $metadata,
-            ]);
+            try {
+                return VoucherWallet::create([
+                    'voucher_id' => $voucher->id,
+                    'holder_type' => $holder->getMorphClass(),
+                    'holder_id' => $holder->getKey(),
+                    'owner_type' => $voucher->owner_type,
+                    'owner_id' => $voucher->owner_id,
+                    'claimed_at' => CarbonImmutable::now(),
+                    'metadata' => $metadata,
+                ]);
+            } catch (QueryException $exception) {
+                if (! $this->isUniqueConstraintViolation($exception)) {
+                    throw $exception;
+                }
+
+                $raced = VoucherWallet::where('voucher_id', $voucher->id)
+                    ->where('holder_type', $holder->getMorphClass())
+                    ->where('holder_id', $holder->getKey())
+                    ->whereNull('redeemed_at')
+                    ->first();
+
+                if (! $raced instanceof VoucherWallet) {
+                    throw $exception;
+                }
+
+                return $raced;
+            }
         });
     }
 
@@ -66,5 +95,10 @@ final class AddVoucherToWallet
         }
 
         return $voucher;
+    }
+
+    private function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        return in_array((string) ($exception->errorInfo[0] ?? $exception->getCode()), ['23000', '23505'], true);
     }
 }

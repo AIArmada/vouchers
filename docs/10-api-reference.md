@@ -166,6 +166,28 @@ Throws `ManualRedemptionNotAllowedException` if not allowed.
 
 ---
 
+#### redeem
+
+Redeem a voucher after successful order completion (checkout path).
+
+```php
+use AIArmada\Vouchers\Contracts\VoucherServiceInterface;
+
+app(VoucherServiceInterface::class)->redeem(
+    code: $code,
+    orderId: (string) $order->id,
+    discountAmount: $allocatedAmount, // omit to recompute from the order subtotal
+    currency: $order->currency,
+);
+```
+
+When the allocated checkout amount is omitted for a percentage voucher, the
+discount is recomputed from the order subtotal (honoring the voucher's
+maximum-discount cap) instead of recording zero. Fixed vouchers fall back to
+their face value.
+
+---
+
 #### getUsageHistory
 
 Get usage history for a voucher.

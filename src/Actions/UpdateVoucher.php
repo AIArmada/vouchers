@@ -35,6 +35,18 @@ final class UpdateVoucher
         $status = $data['status'] ?? null;
         unset($data['status']);
 
+        // Ownership tuples are immutable after creation and counters plus
+        // lifecycle timestamps are system-managed; never mass-assign them
+        // from caller input. (Code renames stay supported.)
+        unset(
+            $data['owner_type'],
+            $data['owner_id'],
+            $data['applied_count'],
+            $data['paused_at'],
+            $data['depleted_at'],
+            $data['last_activated_at'],
+        );
+
         $voucher->update($data);
 
         if (is_string($status) && VoucherStatus::normalize($status) !== $voucher->status->getValue()) {

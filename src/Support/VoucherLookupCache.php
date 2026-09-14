@@ -34,6 +34,9 @@ final class VoucherLookupCache
         Closure $resolver,
     ): ?VoucherData {
         if ($includeGlobal) {
+            // Deliberately uncached: a global voucher saved later can only
+            // invalidate its own owner key, never every tenant key that may
+            // have cached it alongside owner rows. Correctness over hits.
             return $resolver();
         }
 

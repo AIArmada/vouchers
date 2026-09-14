@@ -6,6 +6,7 @@ namespace AIArmada\Vouchers\Listeners;
 
 use AIArmada\Cart\Cart;
 use AIArmada\Cart\Contracts\CartManagerInterface;
+use AIArmada\Vouchers\Actions\RemoveVoucherFromCart;
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Vouchers\Exceptions\VoucherValidationException;
 use AIArmada\Vouchers\Support\VoucherCartMetadata;
@@ -59,6 +60,12 @@ class ValidateVoucherOnCheckout
 
         // Update cart metadata with only valid vouchers
         if (count($invalidCodes) > 0) {
+            // Removing metadata alone would leave the already-registered
+            // discount conditions pricing into this request's totals.
+            foreach (array_keys($invalidCodes) as $invalidCode) {
+                RemoveVoucherFromCart::run($cart, (string) $invalidCode);
+            }
+
             $cart->setMetadata(VoucherCartMetadata::VOUCHER_CODES, $validCodes);
 
             // Optionally block checkout on invalid vouchers

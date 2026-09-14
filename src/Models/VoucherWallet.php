@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\DB;
 use OwenIt\Auditing\Contracts\Auditable;
 use Spatie\Activitylog\Support\LogOptions;
 
@@ -84,9 +85,7 @@ final class VoucherWallet extends Model implements Auditable
             return;
         }
 
-        $this->update([
-            'claimed_at' => CarbonImmutable::now(),
-        ]);
+        $this->transitionTimestampOnce('claimed_at');
     }
 
     public function markAsRedeemed(): void
@@ -95,9 +94,47 @@ final class VoucherWallet extends Model implements Auditable
             return;
         }
 
-        $this->update([
-            'redeemed_at' => CarbonImmutable::now(),
-        ]);
+        $this->transitionTimestampOnce('redeemed_at');
+    }
+
+    /**
+     * Atomically set a claim/redeem timestamp exactly once.
+     *
+     * The row lock serializes concurrent callers so only the first one
+     * writes; losers sync to the winner's timestamp. Writes go through
+     * save() so timestamps, audits, and activity logs stay intact.
+     */
+    private function transitionTimestampOnce(string $column): void
+    {
+        if ($this->getKey() === null) {
+            $this->update([$column => CarbonImmutable::now()]);
+
+            return;
+        }
+
+        DB::transaction(function () use ($column): void {
+            // Identity re-read of an already-held row: the owner posture of
+            // claim/redeem is unchanged; only the transition is serialized.
+            /** @var self|null $fresh */
+            $fresh = static::query()
+                ->withoutOwnerScope()
+                ->whereKey($this->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if (! $fresh instanceof self) {
+                return;
+            }
+
+            if ($fresh->getAttribute($column) !== null) {
+                $this->setRawAttributes($fresh->getAttributes(), true);
+
+                return;
+            }
+
+            $this->setAttribute($column, CarbonImmutable::now());
+            $this->save();
+        });
     }
 
     public function isAvailable(): bool

@@ -5,14 +5,22 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Traits;
 
 use AIArmada\CommerceSupport\Support\OwnerContext;
+use AIArmada\Vouchers\Actions\AddVoucherToWallet;
 use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\Models\VoucherWallet;
+use AIArmada\Vouchers\States\Active;
+use AIArmada\Vouchers\States\VoucherStatus;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 
+/**
+ * @mixin Model
+ */
 trait HasVouchers
 {
     /**
@@ -40,17 +48,7 @@ trait HasVouchers
      */
     public function addVoucherToWallet(string $voucherCode): VoucherWallet
     {
-        $voucher = $this->voucherQueryByCode($voucherCode)->firstOrFail();
-
-        /** @var VoucherWallet $voucherWallet */
-        $voucherWallet = $this->voucherWallets()->create([
-            'voucher_id' => $voucher->id,
-            'owner_type' => $voucher->owner_type,
-            'owner_id' => $voucher->owner_id,
-            'claimed_at' => CarbonImmutable::now(),
-        ]);
-
-        return $voucherWallet;
+        return AddVoucherToWallet::run($voucherCode, $this);
     }
 
     /**
@@ -87,13 +85,29 @@ trait HasVouchers
      *
      * @return Collection<int, VoucherWallet>
      */
-    public function getAvailableVouchers(): Collection
+    public function getAvailableVouchers(?int $limit = null): Collection
     {
+        $now = CarbonImmutable::now();
+
         /** @var Collection<int, VoucherWallet> $wallets */
         $wallets = $this->voucherWallets()
-            ->with('voucher')
+            ->with(['voucher' => static function (BelongsTo $query): void {
+                $query->withCount('usages');
+            }])
             ->whereNotNull('claimed_at')
             ->whereNull('redeemed_at')
+            ->whereHas('voucher', static function (Builder $query) use ($now): void {
+                $query->where('status', VoucherStatus::normalize(Active::class))
+                    ->where(static function (Builder $builder) use ($now): void {
+                        $builder->whereNull('starts_at')->orWhere('starts_at', '<=', $now);
+                    })
+                    ->where(static function (Builder $builder) use ($now): void {
+                        $builder->whereNull('expires_at')->orWhere('expires_at', '>=', $now);
+                    });
+            })
+            ->when($limit !== null, static function (Builder $query) use ($limit): void {
+                $query->limit(max(1, $limit));
+            })
             ->get();
 
         return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->canBeUsed());
@@ -121,13 +135,21 @@ trait HasVouchers
      *
      * @return Collection<int, VoucherWallet>
      */
-    public function getExpiredVouchers(): Collection
+    public function getExpiredVouchers(?int $limit = null): Collection
     {
         /** @var Collection<int, VoucherWallet> $wallets */
         $wallets = $this->voucherWallets()
-            ->with('voucher')
+            ->with(['voucher' => static function (BelongsTo $query): void {
+                $query->withCount('usages');
+            }])
             ->whereNotNull('claimed_at')
             ->whereNull('redeemed_at')
+            ->whereHas('voucher', static function (Builder $query): void {
+                $query->whereNotNull('expires_at')->where('expires_at', '<=', CarbonImmutable::now());
+            })
+            ->when($limit !== null, static function (Builder $query) use ($limit): void {
+                $query->limit(max(1, $limit));
+            })
             ->get();
 
         return $wallets->filter(fn (VoucherWallet $wallet) => $wallet->isExpired());
