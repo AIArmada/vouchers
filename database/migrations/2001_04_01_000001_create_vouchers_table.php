@@ -105,14 +105,4 @@ return new class extends Migration
             DB::statement("CREATE INDEX vouchers_exclusion_groups_gin_index ON \"{$tableName}\" USING GIN (\"exclusion_groups\")");
         }
     }
-
-    public function down(): void
-    {
-        /** @var array<string, string> $tables */
-        $tables = config('vouchers.database.tables', []);
-        $prefix = (string) config('vouchers.database.table_prefix', '');
-        $tableName = $tables['vouchers'] ?? $prefix . 'vouchers';
-
-        Schema::dropIfExists($tableName);
-    }
 };

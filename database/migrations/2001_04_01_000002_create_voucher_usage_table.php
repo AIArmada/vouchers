@@ -52,14 +52,4 @@ return new class extends Migration
             DB::statement("CREATE INDEX voucher_usage_target_definition_gin_index ON \"{$tableName}\" USING GIN (\"target_definition\")");
         }
     }
-
-    public function down(): void
-    {
-        /** @var array<string, string> $tables */
-        $tables = config('vouchers.database.tables', []);
-        $prefix = (string) config('vouchers.database.table_prefix', '');
-        $tableName = $tables['voucher_usage'] ?? $prefix . 'voucher_usage';
-
-        Schema::dropIfExists($tableName);
-    }
 };

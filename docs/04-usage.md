@@ -92,7 +92,13 @@ if ($result->isValid) {
 }
 ```
 
-`ValidateVoucherCode` is the validation entrypoint. `VoucherData::fromArray()` rejects floats via `InvalidVoucherDataException::floatNotAllowed` — pass integer minor units only:
+`ValidateVoucherCode` is the validation entrypoint. `VoucherData::fromArray()` rejects floats via `InvalidVoucherDataException::floatNotAllowed` — pass integer minor units only.
+
+Validation fails closed on anything it cannot evaluate:
+
+- Unknown cart shapes resolve to a zero total, so a minimum-cart-value requirement can never pass blindly (the shape is logged at debug level so new caller shapes stay visible).
+- A targeting definition that is present but invalid (empty rules, malformed `targeting` payload) makes the voucher ineligible instead of granting eligibility.
+- Targeting rules evaluated against a non-`Cart` snapshot (no live line items to test) make the voucher ineligible — product-restricted vouchers must never apply to unevaluated orders.
 
 ```php
 use AIArmada\Vouchers\Data\VoucherData;

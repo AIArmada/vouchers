@@ -45,14 +45,4 @@ return new class extends Migration
             DB::statement("CREATE UNIQUE INDEX voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");
         }
     }
-
-    public function down(): void
-    {
-        /** @var array<string, string> $tables */
-        $tables = config('vouchers.database.tables', []);
-        $prefix = (string) config('vouchers.database.table_prefix', '');
-        $tableName = $tables['voucher_wallets'] ?? $prefix . 'voucher_wallets';
-
-        Schema::dropIfExists($tableName);
-    }
 };
