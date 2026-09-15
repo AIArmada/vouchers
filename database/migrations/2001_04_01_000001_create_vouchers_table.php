@@ -21,7 +21,7 @@ return new class extends Migration
         Schema::create($tableName, function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->nullableUuidMorphs('owner');
-            $table->string('code')->unique();
+            $table->string('code');
             $table->string('name');
             $table->text('description')->nullable();
 
@@ -73,6 +73,11 @@ return new class extends Migration
             // Indexes
             $table->index('status');
             $table->index(['starts_at', 'expires_at']);
+            // Codes are unique per owner so tenants can reuse names like
+            // `WELCOME10`. NULL owner tuples stay mutually distinct on most
+            // drivers; global rows are privileged writes guarded by scoped
+            // form rules in addition to this constraint.
+            $table->unique(['owner_type', 'owner_id', 'code'], 'vouchers_owner_code_unique');
             // Note: nullableUuidMorphs('owner') already creates index on ['owner_type', 'owner_id']
             $table->index('type'); // For filtering by voucher type
             $table->index('expires_at'); // For expiration checks

@@ -197,8 +197,15 @@ class VoucherValidator
             );
         }
 
+        // Fail closed: targeting rules exist but the context carries no line
+        // items to evaluate them against (array snapshot without a live
+        // cart). Granting eligibility blindly would let product-restricted
+        // vouchers apply to ineligible orders.
         if (! $cart instanceof Cart) {
-            return VoucherValidationResult::valid();
+            return VoucherValidationResult::invalid(
+                'You do not meet the eligibility requirements for this voucher.',
+                ['targeting_failed' => true]
+            );
         }
 
         $context = TargetingContext::fromCart($cart);
