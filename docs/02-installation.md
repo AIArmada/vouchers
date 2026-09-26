@@ -59,22 +59,27 @@ VOUCHERS_JSON_COLUMN_TYPE=jsonb
 
 ## Environment Variables
 
+`config/vouchers.php` reads only these environment variables. Every other key in the
+config is a literal default and is changed in `config/vouchers.php` instead.
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VOUCHERS_AUTO_UPPERCASE` | `true` | Uppercase codes for case-insensitive matching |
-| `VOUCHERS_MAX_PER_CART` | `1` | Maximum vouchers per cart (0=disabled, -1=unlimited) |
-| `VOUCHERS_REPLACE_WHEN_MAX_REACHED` | `true` | Replace oldest voucher when max reached |
-| `VOUCHERS_CONDITION_ORDER` | `50` | Order in cart calculation chain |
-| `VOUCHERS_ALLOW_STACKING` | `false` | Allow multiple vouchers to stack |
-| `VOUCHERS_CHECK_USER_LIMIT` | `true` | Check per-user usage limits |
-| `VOUCHERS_CHECK_GLOBAL_LIMIT` | `true` | Check global usage limits |
-| `VOUCHERS_CHECK_MIN_CART_VALUE` | `true` | Check minimum cart value |
-| `VOUCHERS_TRACK_APPLICATIONS` | `true` | Track applied_count for analytics |
-| `VOUCHERS_OWNER_ENABLED` | `false` | Enable multi-tenancy |
-| `COMMERCE_OWNER_RESOLVER` | `AIArmada\CommerceSupport\Contracts\NullOwnerResolver` | Global owner resolver used when multi-tenancy is enabled |
-| `VOUCHERS_OWNER_INCLUDE_GLOBAL` | `false` | Include global vouchers in scoped queries |
-| `VOUCHERS_OWNER_AUTO_ASSIGN_ON_CREATE` | `true` | Auto-assign vouchers to current owner |
-| `VOUCHERS_MANUAL_REQUIRES_FLAG` | `true` | Require flag for manual redemption |
+| `VOUCHERS_TABLE_PREFIX` | `COMMERCE_TABLE_PREFIX` or `''` | Prefix for the three voucher tables |
+| `VOUCHERS_JSON_COLUMN_TYPE` | `jsonb` | JSON column type for voucher JSON columns |
+| `VOUCHERS_CODE_PREFIX` | `''` | Prefix for auto-generated voucher codes |
+| `VOUCHERS_CODE_LENGTH` | `8` | Random length of auto-generated codes |
+| `VOUCHERS_STACKING_MODE` | `sequential` | Stacking strategy |
+| `VOUCHERS_MAX_PER_CART` | `1` | Value of the `max_vouchers` stacking rule (0 = disabled, -1 = unlimited) |
+| `VOUCHERS_OWNER_ENABLED` | `false` | Enable owner scoping |
+| `VOUCHERS_AFFILIATES_ENABLED` | `false` | Enable the `aiarmada/affiliates` integration |
+
+Global commerce variables that also apply:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COMMERCE_TABLE_PREFIX` | `''` | Fallback table prefix when `VOUCHERS_TABLE_PREFIX` is unset |
+| `COMMERCE_JSON_COLUMN_TYPE` | unset | Overrides the JSON column type for every commerce package |
+| `COMMERCE_OWNER_RESOLVER` | `AIArmada\CommerceSupport\Contracts\NullOwnerResolver` | Owner resolver used when owner mode is enabled |
 
 ## Verification
 

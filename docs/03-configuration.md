@@ -16,10 +16,14 @@ Configuration lives in `config/vouchers.php`.
         'voucher_usage' => 'voucher_usage',
         'voucher_wallets' => 'voucher_wallets',
     ],
+    'json_column_type' => env('VOUCHERS_JSON_COLUMN_TYPE', 'jsonb'),
 ],
 ```
 
-Use `VOUCHERS_TABLE_PREFIX` when you need a package-specific prefix. JSON column type follows the shared `COMMERCE_JSON_COLUMN_TYPE` fallback.
+Use `VOUCHERS_TABLE_PREFIX` when you need a package-specific prefix. Migrations resolve
+the JSON column type through `commerce_json_column_type('vouchers', 'jsonb')`, which
+prefers `VOUCHERS_JSON_COLUMN_TYPE`, then the shared `COMMERCE_JSON_COLUMN_TYPE`, then this
+config value.
 
 ## Defaults
 
@@ -79,7 +83,11 @@ The service provider auto-registers these rules from `stacking.rules`:
 ### Registering Custom Rules
 
 ```php
+use AIArmada\Cart\Cart;
+use AIArmada\Vouchers\Conditions\VoucherCondition;
 use AIArmada\Vouchers\Stacking\Contracts\StackingRuleInterface;
+use AIArmada\Vouchers\Stacking\StackingDecision;
+use Illuminate\Support\Collection;
 
 class MyCustomRule implements StackingRuleInterface
 {
@@ -88,8 +96,17 @@ class MyCustomRule implements StackingRuleInterface
         return 'my_custom';
     }
 
-    public function evaluate(StackingContext $context): StackingDecision
+    public function getPriority(): int
     {
+        return 100;
+    }
+
+    public function evaluate(
+        VoucherCondition $newVoucher,
+        Collection $existingVouchers,
+        Cart $cart,
+        array $config,
+    ): StackingDecision {
         // Your logic here
     }
 }
@@ -122,18 +139,6 @@ These checks are on by default. If you relax them, do it deliberately and docume
 ```
 
 Application tracking increments voucher analytics when a code is applied, even before redemption completes.
-
-## Lookup Cache
-
-```php
-'cache' => [
-    'lookup_ttl' => 300,
-],
-```
-
-`VoucherService::find()` caches positive `VoucherData` lookups for the configured number of seconds. Eloquent voucher creates, updates, code changes, and deletes invalidate their owner-scoped lookup automatically. Providers that update the vouchers table outside Eloquent must call `VoucherService::invalidate($code)` after the write; until then, a cached lookup remains stale by contract. Set `lookup_ttl` to `0` or a negative value to disable the lookup cache.
-
-When owner scoping is enabled, cache keys include the current owner. Global-inclusive lookups bypass this cache because a global fallback can affect multiple owner scopes.
 
 ## Owner Scoping
 
@@ -187,13 +192,27 @@ the checkout with a `VoucherValidationException`.
 
 ## Expiry processing
 
-Wall-clock expiry is represented by `Voucher::isExpired()` and the `live()` scope. Schedule the package command to reconcile the indexed `Expired` status:
+No scheduling is required. Wall-clock expiry is derived: `Voucher::isExpired()`
+is the authority, `live()` is the canonical redeemable scope, and
+`getEffectiveStatusAttribute()` reports `Expired` for a past-due voucher so the
+admin table badge, status filter, and stats tile stay accurate without a sweep.
+`VoucherValidator` checks `isExpired()` before it reads status, so a stale
+`Active` row can never be redeemed.
 
-```cron
-* * * * * php artisan vouchers:expire
+To write the terminal `Expired` status for reporting, transition the rows
+directly — the transition goes through the voucher state machine, and `Expired`
+is terminal, so it is irreversible:
+
+```php
+use AIArmada\Vouchers\Actions\ExpireVoucher;
+
+Voucher::query()
+    ->live()
+    ->whereNotNull('expires_at')
+    ->where('expires_at', '<=', now())
+    ->get()
+    ->each(fn (Voucher $voucher) => app(ExpireVoucher::class)->handle($voucher->code));
 ```
-
-Use `php artisan vouchers:expire --dry-run` to inspect the work without changing status. Depletion and expiry transitions go through the voucher state machine.
 
 ## Affiliates Integration
 
@@ -215,3 +234,15 @@ Use `php artisan vouchers:expire --dry-run` to inspect the work without changing
 ```
 
 This block is only relevant when `aiarmada/affiliates` is installed. It controls how affiliate-linked vouchers are seeded and named.
+
+## Lookup Cache
+
+```php
+'cache' => [
+    'lookup_ttl' => 300,
+],
+```
+
+`VoucherService::find()` caches positive `VoucherData` lookups for the configured number of seconds. Eloquent voucher creates, updates, code changes, and deletes invalidate their owner-scoped lookup automatically. Providers that update the vouchers table outside Eloquent must call `VoucherService::invalidate($code)` after the write; until then, a cached lookup remains stale by contract. Set `lookup_ttl` to `0` or a negative value to disable the lookup cache.
+
+When owner scoping is enabled, cache keys include the current owner. Global-inclusive lookups bypass this cache because a global fallback can affect multiple owner scopes.

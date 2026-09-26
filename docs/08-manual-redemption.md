@@ -140,7 +140,7 @@ class POSController extends Controller
     {
         $request->validate([
             'voucher_code' => 'required|string',
-            'amount' => 'required|numeric|min:0',
+            'amount_minor' => 'required|integer|min:0',
             'receipt_number' => 'required|string',
         ]);
         
@@ -157,10 +157,10 @@ class POSController extends Controller
                 ], 422);
             }
             
-            // Process redemption
+            // Process redemption. amount_minor is integer minor units (5000 = RM50.00)
             Voucher::redeemManually(
                 code: $request->voucher_code,
-                discountAmount: Money::MYR($request->amount * 100),
+                discountAmount: Money::MYR($request->amount_minor),
                 reference: $request->receipt_number,
                 metadata: [
                     'terminal' => $terminal,
@@ -193,7 +193,7 @@ class AdminVoucherController extends Controller
         $request->validate([
             'customer_email' => 'required|email',
             'order_id' => 'required|string',
-            'discount_amount' => 'required|numeric|min:0',
+            'discount_amount_minor' => 'required|integer|min:0',
             'reason' => 'required|string',
         ]);
         
@@ -202,7 +202,7 @@ class AdminVoucherController extends Controller
         
         Voucher::redeemManually(
             code: $voucherCode,
-            discountAmount: Money::MYR($request->discount_amount * 100),
+            discountAmount: Money::MYR($request->discount_amount_minor),
             reference: $request->order_id,
             metadata: [
                 'customer_email' => $request->customer_email,
@@ -226,7 +226,7 @@ Use the `ValidateVoucherCode` action for checkout-aware programmatic validation 
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Cart\Facades\Cart;
 
-$result = ValidateVoucherCode::run('SUMMER2024', Cart::session($sessionKey));
+$result = ValidateVoucherCode::run('SUMMER2024', Cart::getCartInstance('default', $cartIdentifier));
 
 if ($result->isValid) {
     // Proceed with redemption

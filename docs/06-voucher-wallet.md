@@ -135,13 +135,13 @@ Voucher::removeFromWallet('SUMMER2024', $user);
 $walletEntry = $user->voucherWallets()->first();
 
 $walletEntry->voucher_id;     // UUID of the voucher
-$walletEntry->owner_type;     // e.g., 'App\Models\User'
-$walletEntry->owner_id;       // User ID
-$walletEntry->is_claimed;     // bool
-$walletEntry->claimed_at;     // Carbon datetime
-$walletEntry->is_redeemed;    // bool
-$walletEntry->redeemed_at;    // Carbon datetime
-$walletEntry->metadata;       // array
+$walletEntry->holder_type;     // e.g., 'App\Models\User'
+$walletEntry->holder_id;       // User ID
+$walletEntry->owner_type;      // Owning merchant, or null for a global voucher
+$walletEntry->owner_id;        // Owning merchant ID, or null for a global voucher
+$walletEntry->claimed_at;      // Carbon datetime (claim timestamp; no boolean flag)
+$walletEntry->redeemed_at;     // Carbon datetime (redemption timestamp; no boolean flag)
+$walletEntry->metadata;        // array
 ```
 
 ## Wallet with Metadata
