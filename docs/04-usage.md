@@ -338,15 +338,24 @@ Voucher::create([
 Set initial status:
 
 ```php
+use AIArmada\Vouchers\Enums\VoucherType;
+use AIArmada\Vouchers\Facades\Voucher;
+use AIArmada\Vouchers\States\Paused;
+
 Voucher::create([
     'code' => 'DRAFT',
     'name' => 'Draft Voucher',
     'type' => VoucherType::Percentage,
     'value' => 1000,
     'currency' => 'MYR',
-    'status' => VoucherStatus::Paused, // Not yet active
+    'status' => Paused::class, // Not yet active
 ]);
 ```
+
+`status` is a `spatie/laravel-model-states` state class name. `CreateVoucher` defaults it to
+`AIArmada\Vouchers\States\Active::class`. `AIArmada\Vouchers\Enums\VoucherStatus` is the plain
+string enum used for display and for `UpdateVoucher`'s string form — passing it to `create()`
+will not resolve to a state.
 
 ## Metadata
 

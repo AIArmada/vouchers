@@ -70,9 +70,23 @@ Voucher::create(array $data): VoucherData
 - `starts_at` - Start datetime
 - `expires_at` - Expiry datetime
 - `allows_manual_redemption` - Allow manual redemption
-- `status` - VoucherStatus enum (default: Active)
+- `status` - Spatie state class, e.g. `AIArmada\Vouchers\States\Active::class` (default: `Active::class`). The backed `AIArmada\Vouchers\Enums\VoucherStatus` enum is **not** accepted here.
 - `metadata` - Additional data array
 - `target_definition` - Targeting rules array
+
+> **warning**
+> `status` is only rewritten when something explicitly transitions it. A voucher whose
+> `expires_at` has passed can still read as `Active`. For anything user-facing, read the
+> derived accessor instead:
+>
+> ```php
+> $voucher->effective_status; // AIArmada\Vouchers\States\VoucherStatus
+> ```
+>
+> `effective_status` returns `Expired` when `isExpired()` is true and the stored state is not
+> already `Expired` or `Depleted`. This mirrors the redemption path, where `VoucherValidator`
+> checks `isExpired()` *before* it reads status — so a past-due voucher cannot be redeemed even
+> if its stored state still says `Active`. There is no nightly sweep to keep the column honest.
 
 ---
 
@@ -284,6 +298,9 @@ Cart::getAppliedVoucherCodes(): array<string>
 Cart::getVoucherDiscount(): float
 ```
 
+Returns the total discount in integer minor units (cents) of the cart currency. Format it
+with `AIArmada\CommerceSupport\Support\MoneyFormatter::formatMinor()`.
+
 ### canAddVoucher
 
 ```php
@@ -324,7 +341,7 @@ class VoucherData
     public ?string $ownerType;
     public ?DateTimeInterface $startsAt;
     public ?DateTimeInterface $expiresAt;
-    public VoucherStatus $status;
+    public States\VoucherStatus $status;
     public ?array $targetDefinition;
     public ?array $metadata;
 }
@@ -370,7 +387,16 @@ enum VoucherType: string
 
 ### VoucherStatus
 
+Two distinct types share this name:
+
+- `AIArmada\Vouchers\Enums\VoucherStatus` — the plain backed enum used for labels, filters,
+  and option lists.
+- `AIArmada\Vouchers\States\VoucherStatus` — the abstract Spatie model-state that the `status`
+  cast on `Voucher` and `VoucherData::$status` actually resolves to. This is the type you
+  pass to `create()` and receive from reads.
+
 ```php
+// AIArmada\Vouchers\Enums\VoucherStatus
 enum VoucherStatus: string
 {
     case Active = 'active';

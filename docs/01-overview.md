@@ -33,8 +33,8 @@ The `aiarmada/vouchers` package owns voucher and coupon issuance, redemption rul
 
 - **Models and records** — vouchers, voucher usage, and voucher wallets
 - **Actions** — `CreateVoucher`, `UpdateVoucher`, `ExpireVoucher`, `ApplyVoucherToCart`, `RemoveVoucherFromCart`, `RecordVoucherUsage`, `ValidateVoucherCode`. Each is a `lorisleiva/laravel-actions` action callable via `::run()`.
-- **Events** — `VoucherCreated`, `VoucherExpired`, `VoucherRefilled`, `VoucherUsageRecorded`, `VoucherApplied`, `VoucherRemoved`. Dispatched by the corresponding actions and services.
-- **Stacking** — `StackingPolicy` (configurable strategy built via `StackingPolicy::fromConfig()`), `StackingDecision` (immutable result), and built-in rules (max vouchers, max discount percentage, type restriction, value threshold, mutual exclusion, category/campaign exclusion).
+- **Events** — `VoucherCreated`, `VoucherExpired`, `VoucherRefilled`, `VoucherUsageRecorded`, `VoucherApplied`, `VoucherRemoved`. Dispatched by the corresponding actions and services. The package registers no listeners for these; they exist for host-app and package consumers. Note that `VoucherExpired` has no in-package caller — see `09-usage-tracking.md`.
+- **Stacking** — `StackingPolicy` (built from `stacking` config via `StackingPolicy::fromConfig()`), the `StackingPolicyInterface` seam, the `StackingDecision` immutable result, and built-in rules (max vouchers, max discount, max discount percentage, type restriction, value threshold, mutual exclusion, category/campaign exclusion). Applied by `ApplyVoucherToCart` through the resolved policy.
 - **Core surface** — cart-condition powered voucher application, validation, redemption, and usage bookkeeping
 - **Companion docs** — creation, cart integration, voucher wallet, multitenancy, manual redemption, usage tracking, and API reference pages
 

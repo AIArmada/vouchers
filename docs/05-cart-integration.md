@@ -43,7 +43,7 @@ use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
 
 try {
     $condition = ApplyVoucherToCart::run(
-        cart: Cart::getCartInstance('default', $sessionKey),
+        cart: Cart::getCartInstance('default', $cartIdentifier),
         code: 'SUMMER2024',
     );
 
@@ -76,7 +76,7 @@ use AIArmada\Vouchers\Actions\RemoveVoucherFromCart;
 use AIArmada\Cart\Facades\Cart;
 
 RemoveVoucherFromCart::run(
-    cart: Cart::getCartInstance('default', $sessionKey),
+    cart: Cart::getCartInstance('default', $cartIdentifier),
     code: 'SUMMER2024',
 );
 ```
@@ -110,10 +110,15 @@ foreach ($vouchers as $voucherCondition) {
 
 ## Getting Voucher Discount
 
+`getVoucherDiscount()` returns the discount in minor units (cents) for the cart currency:
+
 ```php
+use AIArmada\CommerceSupport\Support\MoneyFormatter;
+
 // Get total discount from all vouchers
-$discount = Cart::getVoucherDiscount();
-echo "You save: RM" . number_format($discount / 100, 2);
+$discount = Cart::getVoucherDiscount(); // 3000 minor units
+
+echo "You save: " . MoneyFormatter::formatMinor((int) $discount, 'MYR');
 ```
 
 ## Voucher Limits
@@ -156,9 +161,15 @@ if (count($removedVouchers) > 0) {
 'stacking' => [
     'mode' => 'sequential',
     'rules' => [
-        ['type' => 'max_vouchers', 'value' => 3],
+        ['type' => 'max_vouchers', 'value' => 1],
+        ['type' => 'max_discount_percentage', 'value' => 50],
+        ['type' => 'type_restriction', 'max_per_type' => [
+            'percentage' => 1,
+            'fixed' => 2,
+            'free_shipping' => 1,
+        ]],
     ],
-    'auto_replace' => false, // Don't replace, throw error
+    'auto_replace' => true, // Replace conflicting vouchers instead of throwing
 ],
 ```
 
@@ -257,13 +268,13 @@ try {
 
 ```php
 // Get totals
-$subtotal = Cart::subtotal();       // Before conditions
-$total = Cart::total();              // After all conditions
-$voucherDiscount = Cart::getVoucherDiscount();
+$subtotal = Cart::subtotal();       // \Akaunting\Money\Money, before conditions
+$total = Cart::total();             // \Akaunting\Money\Money, after all conditions
+$voucherDiscount = Cart::getVoucherDiscount(); // minor units
 
 // Display
 echo "Subtotal: " . $subtotal->format();
-echo "Discount: -" . number_format($voucherDiscount / 100, 2);
+echo "Discount: -" . MoneyFormatter::formatMinor((int) $voucherDiscount, $total->getCurrency()->getCurrency());
 echo "Total: " . $total->format();
 ```
 
@@ -293,7 +304,7 @@ affiliates and attach affiliate data from voucher metadata.
     'auto_create_voucher' => false,
     'create_on_activation' => true,
     'set_default_voucher_code' => true,
-    'code_format' => 'prefix_code',
+    'code_format' => 'code_only',
     'code_prefix' => 'REF',
     'voucher_defaults' => [
         'type' => 'percentage',

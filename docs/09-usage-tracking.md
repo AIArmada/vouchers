@@ -64,12 +64,14 @@ Get detailed redemption history:
 
 ```php
 use AIArmada\Vouchers\Facades\Voucher;
+use AIArmada\CommerceSupport\Support\MoneyFormatter;
 
 $history = Voucher::getUsageHistory('SUMMER2024');
 
 foreach ($history as $usage) {
     echo "Date: " . $usage->used_at->format('d M Y H:i');
-    echo "Amount: " . number_format($usage->discount_amount / 100, 2);
+    // discount_amount is integer minor units for $usage->currency
+    echo "Amount: " . MoneyFormatter::formatMinor($usage->discount_amount, $usage->currency);
     echo "Currency: " . $usage->currency;
     echo "Channel: " . $usage->channel;
     
@@ -271,7 +273,8 @@ The returned `VoucherUsage` model includes the voucher, discount details, and re
 
 ## Usage Events
 
-All usage-related events extend a common `HasVoucherEventData` concern, giving each event access to `VoucherData` for the affected voucher.
+All usage-related events extend a common `HasVoucherEventData` concern and expose the affected
+voucher as the public readonly `$voucher` property (a `VoucherData` DTO).
 
 ### VoucherUsageRecorded
 
@@ -281,8 +284,8 @@ Dispatched by `RecordVoucherUsage::run()` after a usage record is persisted.
 use AIArmada\Vouchers\Events\VoucherUsageRecorded;
 
 Event::listen(VoucherUsageRecorded::class, function ($event) {
-    $voucherData = $event->voucher;  // VoucherData DTO
-    $usage = $event->usage;          // VoucherUsage model
+    $voucherData = $event->voucher;    // VoucherData DTO
+    $usage = $event->usage;            // VoucherUsage model
 
     Analytics::track('voucher_redeemed', [
         'voucher_code' => $voucherData->code,
@@ -296,6 +299,14 @@ Event::listen(VoucherUsageRecorded::class, function ($event) {
 ### VoucherExpired
 
 Dispatched by `ExpireVoucher::run()`.
+
+> **warning**
+> The package registers **no listener** for this event, and `ExpireVoucher` currently has **no
+> caller** — the former `vouchers:expire` sweep command was removed, because `VoucherValidator`
+> already checks `isExpired()` before it reads status. So nothing in the package fires this
+> event. Call `ExpireVoucher` yourself if you want the transition written, or listen for
+> `VoucherUsageRecorded` and derive expiry from the date. `Voucher::effective_status` is the
+> read-side equivalent and needs no sweep at all.
 
 ```php
 use AIArmada\Vouchers\Events\VoucherExpired;
