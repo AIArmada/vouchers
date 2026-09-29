@@ -43,7 +43,7 @@ keywords:
 ## Key surfaces
 - Models: `Voucher`, `VoucherUsage`, `VoucherWallet`
 - Actions/Services: `Actions/AddVoucherToWallet`, `Actions/ApplyVoucherToCart`, `Actions/CreateVoucher`, `Actions/ExpireVoucher`, `Actions/RecordVoucherUsage`, `Actions/RemoveVoucherFromCart`, `Actions/UpdateVoucher`, `Actions/ValidateVoucherCode`
-- Config `vouchers.php`: `vouchers`, `voucher_usage`, `voucher_wallets`, `database`, `table_prefix`, `tables`, `json_column_type`, `default_currency`
+- Config `vouchers.php`: `database`, `default_currency`, `code`, `stacking`, `validation`, `tracking`, `cache`, `owner`, `redemption`, `reservation`, `checkout`, `affiliates`
 
 ## Docs map
 - Start: `01-overview` → `03-configuration` → `04-usage` → `99-troubleshooting`

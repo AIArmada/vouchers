@@ -126,44 +126,35 @@ $voucher = Voucher::create([
 
 ### Manual Assignment
 
-Explicitly assign owner. Inbound owner columns are only honoured when no owner context is
-resolved yet; once a context resolves, `auto_assign_on_create` overwrites them with the
-current owner. Passing owner columns that do not match the resolved owner throws an
-`AuthorizationException`:
+Explicitly assign owner:
 
 ```php
-$store = OwnerContext::resolve(); // must be the store you assign
-
 $voucher = Voucher::create([
     'code' => 'STORE50',
     'name' => 'Store Promo',
     'type' => VoucherType::Fixed,
     'value' => 5000,
     'currency' => 'MYR',
-    'owner_type' => $store->getMorphClass(),
+    'owner_type' => Store::class,
     'owner_id' => $store->id,
 ]);
 ```
 
 ### Global Vouchers
 
-Create a voucher with no owner. This is a *global row*, not a row visible to every owner:
-it is only returned when `include_global` is `true`. Passing `null` owner columns does not
-force a global row while an owner context is resolved — wrap the write in explicit global
-context:
+Create vouchers without an owner (available to all):
 
 ```php
-use AIArmada\CommerceSupport\Support\OwnerContext;
-
-OwnerContext::withOwner(null, function (): void {
-    $voucher = Voucher::create([
-        'code' => 'SITEWIDE',
-        'name' => 'Sitewide Promo',
-        'type' => VoucherType::Percentage,
-        'value' => 500,
-        'currency' => 'MYR',
-    ]);
-});
+// Disable auto-assign temporarily
+$voucher = Voucher::create([
+    'code' => 'SITEWIDE',
+    'name' => 'Sitewide Promo',
+    'type' => VoucherType::Percentage,
+    'value' => 500,
+    'currency' => 'MYR',
+    'owner_type' => null,
+    'owner_id' => null,
+]);
 ```
 
 ### Querying Vouchers

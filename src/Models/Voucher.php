@@ -15,7 +15,6 @@ use AIArmada\CommerceSupport\Traits\HasOwnerScopeConfig;
 use AIArmada\Vouchers\Enums\VoucherType;
 use AIArmada\Vouchers\States\Active;
 use AIArmada\Vouchers\States\Depleted;
-use AIArmada\Vouchers\States\Expired;
 use AIArmada\Vouchers\States\Paused;
 use AIArmada\Vouchers\States\VoucherStatus;
 use AIArmada\Vouchers\Support\VoucherLookupCache;
@@ -288,24 +287,6 @@ class Voucher extends Model implements Auditable
         $expiresAt = $this->getAttribute('expires_at');
 
         return $expiresAt !== null && $expiresAt->isPast();
-    }
-
-    /**
-     * The status a reader should see. A past-due voucher reads as `Expired`
-     * even when nothing has written the transition, because `Expired` is a
-     * terminal state in the `VoucherStatus` graph and only this accessor keeps
-     * display honest between sweeps. Mirrors the redemption path, which
-     * `VoucherValidator` checks on `isExpired()` before it reads status.
-     */
-    public function getEffectiveStatusAttribute(): VoucherStatus
-    {
-        $status = $this->status;
-
-        if ($this->isExpired() && ! $status instanceof Expired && ! $status instanceof Depleted) {
-            return new Expired($this);
-        }
-
-        return $status;
     }
 
     public function hasStarted(): bool

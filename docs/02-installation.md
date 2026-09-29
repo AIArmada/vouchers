@@ -59,27 +59,19 @@ VOUCHERS_JSON_COLUMN_TYPE=jsonb
 
 ## Environment Variables
 
-`config/vouchers.php` reads only these environment variables. Every other key in the
-config is a literal default and is changed in `config/vouchers.php` instead.
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `VOUCHERS_TABLE_PREFIX` | `COMMERCE_TABLE_PREFIX` or `''` | Prefix for the three voucher tables |
-| `VOUCHERS_JSON_COLUMN_TYPE` | `jsonb` | JSON column type for voucher JSON columns |
-| `VOUCHERS_CODE_PREFIX` | `''` | Prefix for auto-generated voucher codes |
-| `VOUCHERS_CODE_LENGTH` | `8` | Random length of auto-generated codes |
-| `VOUCHERS_STACKING_MODE` | `sequential` | Stacking strategy |
-| `VOUCHERS_MAX_PER_CART` | `1` | Value of the `max_vouchers` stacking rule (0 = disabled, -1 = unlimited) |
-| `VOUCHERS_OWNER_ENABLED` | `false` | Enable owner scoping |
-| `VOUCHERS_AFFILIATES_ENABLED` | `false` | Enable the `aiarmada/affiliates` integration |
+| `VOUCHERS_TABLE_PREFIX` | `''` | Package-specific table prefix (falls back to `COMMERCE_TABLE_PREFIX`) |
+| `VOUCHERS_JSON_COLUMN_TYPE` | `jsonb` | JSON column type for migrations |
+| `VOUCHERS_CODE_PREFIX` | `''` | Prefix for generated voucher codes |
+| `VOUCHERS_CODE_LENGTH` | `8` | Length of generated voucher codes |
+| `VOUCHERS_STACKING_MODE` | `sequential` | Stacking application mode |
+| `VOUCHERS_MAX_PER_CART` | `1` | Maximum vouchers per cart |
+| `VOUCHERS_OWNER_ENABLED` | `false` | Enable multi-tenancy |
+| `VOUCHERS_AFFILIATES_ENABLED` | `false` | Enable affiliates integration |
+| `COMMERCE_OWNER_RESOLVER` | `AIArmada\CommerceSupport\Support\NullOwnerResolver` | Global owner resolver used when multi-tenancy is enabled |
 
-Global commerce variables that also apply:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `COMMERCE_TABLE_PREFIX` | `''` | Fallback table prefix when `VOUCHERS_TABLE_PREFIX` is unset |
-| `COMMERCE_JSON_COLUMN_TYPE` | unset | Overrides the JSON column type for every commerce package |
-| `COMMERCE_OWNER_RESOLVER` | `AIArmada\CommerceSupport\Contracts\NullOwnerResolver` | Owner resolver used when owner mode is enabled |
+Validation checks, application tracking, owner include-global/auto-assign, and manual-redemption flags are hardcoded `true`/`false` defaults in `config/vouchers.php`; change them in the config file, not via environment.
 
 ## Verification
 

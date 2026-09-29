@@ -69,7 +69,7 @@ use AIArmada\Cart\Facades\Cart;
 
 try {
     Cart::applyVoucher('SUMMER2024');
-    echo "Total: " . Cart::getTotal()->format();
+    echo "Total: " . Cart::total()->format();
 } catch (\AIArmada\Vouchers\Exceptions\InvalidVoucherException $e) {
     echo $e->getMessage();
 }
@@ -232,8 +232,8 @@ $stats = $voucher->getStatistics();
 
 ```php
 'code' => [
-    // Automatically uppercase codes for case-insensitive matching
-    'auto_uppercase' => env('VOUCHERS_AUTO_UPPERCASE', true),
+    // Automatically uppercase codes for case-insensitive matching (always enabled)
+    'auto_uppercase' => true,
 ],
 ```
 
@@ -255,9 +255,10 @@ $stats = $voucher->getStatistics();
 
 ```php
 'validation' => [
-    'check_user_limit' => env('VOUCHERS_CHECK_USER_LIMIT', true),
-    'check_global_limit' => env('VOUCHERS_CHECK_GLOBAL_LIMIT', true),
-    'check_min_cart_value' => env('VOUCHERS_CHECK_MIN_CART_VALUE', true),
+    'check_user_limit' => true,
+    'check_global_limit' => true,
+    'check_min_cart_value' => true,
+    'check_targeting' => true,
 ],
 ```
 
@@ -266,17 +267,20 @@ $stats = $voucher->getStatistics();
 ```php
 'tracking' => [
     // Track applied_count when voucher is added to cart
-    'track_applications' => env('VOUCHERS_TRACK_APPLICATIONS', true),
+    'track_applications' => true,
 ],
 ```
 
 ### Database Tables
 
 ```php
-'table_names' => [
-    'vouchers' => 'vouchers',
-    'voucher_usage' => 'voucher_usage',
-    'voucher_wallets' => 'voucher_wallets',
+'database' => [
+    'table_prefix' => env('VOUCHERS_TABLE_PREFIX', env('COMMERCE_TABLE_PREFIX', '')),
+    'tables' => [
+        'vouchers' => 'vouchers',
+        'voucher_usage' => 'voucher_usage',
+        'voucher_wallets' => 'voucher_wallets',
+    ],
 ],
 ```
 
@@ -285,8 +289,8 @@ $stats = $voucher->getStatistics();
 ```php
 'redemption' => [
     // Require allows_manual_redemption flag on voucher
-    'manual_requires_flag' => env('VOUCHERS_MANUAL_REQUIRES_FLAG', true),
-    
+    'manual_requires_flag' => true,
+
     // Channel name for manual redemptions
     'manual_channel' => 'manual',
 ],
