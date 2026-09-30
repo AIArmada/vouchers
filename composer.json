@@ -10,7 +10,7 @@
   "require": {
     "aiarmada/cart": "self.version",
     "aiarmada/commerce-support": "self.version",
-    "php": "^8.4"
+    "php": "^8.5"
   },
   "autoload": {
     "psr-4": {
