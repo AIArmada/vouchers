@@ -11,7 +11,9 @@ use AIArmada\CommerceSupport\Targeting\Contracts\TargetingEngineInterface;
 use AIArmada\CommerceSupport\Targeting\Enums\TargetingMode;
 use AIArmada\CommerceSupport\Targeting\TargetingContext;
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
+use AIArmada\Vouchers\Concerns\ResolvesVoucherAssignee;
 use AIArmada\Vouchers\Data\VoucherValidationResult;
+use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
 use AIArmada\Vouchers\Models\Voucher;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\States\Depleted;
@@ -26,6 +28,7 @@ use Throwable;
 class VoucherValidator
 {
     use QueriesVouchers;
+    use ResolvesVoucherAssignee;
 
     public function __construct(
         private readonly TargetingEngineInterface $targetingEngine
@@ -42,6 +45,25 @@ class VoucherValidator
 
         if (! $voucher) {
             return VoucherValidationResult::invalid('Voucher not found.');
+        }
+
+        // Recipient-bound vouchers refuse every other account. Unmarked
+        // vouchers skip this check entirely.
+        try {
+            $assignee = $this->resolveAssignee($voucher);
+        } catch (InvalidVoucherException $exception) {
+            return VoucherValidationResult::invalid($exception->getMessage());
+        }
+
+        if ($assignee !== null) {
+            $user = $this->getUser();
+
+            if (! $user instanceof Model
+                || $user->getMorphClass() !== $assignee['type']
+                || (string) $user->getKey() !== $assignee['id']
+            ) {
+                return VoucherValidationResult::invalid('This voucher is assigned to another account.');
+            }
         }
 
         // Check start date (before status check, as time-based validations are more specific)

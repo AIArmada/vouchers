@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Actions;
 
 use AIArmada\Vouchers\Concerns\QueriesVouchers;
+use AIArmada\Vouchers\Concerns\ResolvesVoucherAssignee;
 use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Events\VoucherUsageRecorded;
+use AIArmada\Vouchers\Exceptions\InvalidVoucherException;
+use AIArmada\Vouchers\Exceptions\VoucherExpiredException;
 use AIArmada\Vouchers\Exceptions\VoucherNotFoundException;
 use AIArmada\Vouchers\Exceptions\VoucherUsageLimitException;
 use AIArmada\Vouchers\Models\Voucher as VoucherModel;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use AIArmada\Vouchers\States\Depleted;
+use AIArmada\Vouchers\States\Expired;
 use Akaunting\Money\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +30,7 @@ final class RecordVoucherUsage
 {
     use AsAction;
     use QueriesVouchers;
+    use ResolvesVoucherAssignee;
 
     /**
      * Record a voucher usage.
@@ -54,9 +59,49 @@ final class RecordVoucherUsage
                 throw new VoucherNotFoundException("Voucher with code '{$code}' not found.");
             }
 
-            $this->assertCurrencyMatches($lockedVoucher, $discountAmount);
+            // Recipient-bound vouchers refuse unattributed and foreign
+            // redeemers. Unmarked vouchers skip this check entirely.
+            $assignee = $this->resolveAssignee($lockedVoucher);
+
+            if ($assignee !== null
+                && (! $redeemedBy instanceof Model
+                    || $redeemedBy->getMorphClass() !== $assignee['type']
+                    || (string) $redeemedBy->getKey() !== $assignee['id'])
+            ) {
+                throw InvalidVoucherException::assignedToAnother($lockedVoucher->code);
+            }
 
             $idempotencyKey = $this->resolveIdempotencyKey($metadata);
+
+            if ($idempotencyKey !== null) {
+                $existingUsage = VoucherUsage::query()
+                    ->where('voucher_id', $lockedVoucher->id)
+                    ->where('idempotency_key', $idempotencyKey)
+                    ->first();
+
+                if ($existingUsage instanceof VoucherUsage) {
+                    $sameRedeemer = $existingUsage->redeemed_by_type === $redeemedBy?->getMorphClass()
+                        && (string) $existingUsage->redeemed_by_id === (string) $redeemedBy?->getKey();
+                    $sameAmount = (string) $existingUsage->discount_amount === (string) $discountAmount->getAmount();
+                    $sameCurrency = mb_strtoupper($existingUsage->currency) === mb_strtoupper($discountAmount->getCurrency()->getCurrency());
+
+                    if (! $sameRedeemer || ! $sameAmount || ! $sameCurrency) {
+                        throw ValidationException::withMessages([
+                            'idempotency_key' => 'The idempotency key was already used for a different voucher redemption.',
+                        ]);
+                    }
+
+                    return $existingUsage;
+                }
+            }
+
+            // Expired or revoked vouchers record no further new usage. The
+            // row lock serializes this check against concurrent revocation.
+            if ($lockedVoucher->isExpired() || $lockedVoucher->status instanceof Expired) {
+                throw VoucherExpiredException::withCode($lockedVoucher->code);
+            }
+
+            $this->assertCurrencyMatches($lockedVoucher, $discountAmount);
 
             // Check global usage limit
             if ($lockedVoucher->usage_limit !== null) {

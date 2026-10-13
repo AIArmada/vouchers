@@ -8,6 +8,32 @@ title: Usage
 
 The package exposes domain actions built with `lorisleiva/laravel-actions`. Each action is a self-contained unit with a `run()` static entrypoint.
 
+## Recipient-bound vouchers
+
+Set an `assignee` marker in voucher metadata to restrict validation and redemption to one model. The `type` must be the model's morph class and `id` its key:
+
+```php
+use AIArmada\Vouchers\Actions\CreateVoucher;
+use AIArmada\Vouchers\Enums\VoucherType;
+
+// Assume $customer is the intended recipient model.
+$voucher = CreateVoucher::run([
+    'code' => 'WELCOME-ALICE',
+    'name' => 'Welcome offer',
+    'type' => VoucherType::Fixed,
+    'value' => 2500,
+    'currency' => 'MYR',
+    'metadata' => [
+        'assignee' => [
+            'type' => $customer->getMorphClass(),
+            'id' => (string) $customer->getKey(),
+        ],
+    ],
+]);
+```
+
+Validation uses the authenticated model. `RecordVoucherUsage` also requires that model as `redeemedBy`; missing or different redeemers are rejected. Expired vouchers cannot record new usage. A repeated idempotency key returns the earlier usage only when its redeemer, amount, and currency match.
+
 ### CreateVoucher
 
 ```php

@@ -20,4 +20,14 @@ class InvalidVoucherException extends VoucherException
     {
         return new self("Voucher '{$code}' requires a minimum cart value of {$minValue}.");
     }
+
+    public static function assignedToAnother(string $code): self
+    {
+        return new self("Voucher '{$code}' is assigned to another account.");
+    }
+
+    public static function invalidAssignee(string $code): self
+    {
+        return new self("Voucher '{$code}' has an invalid recipient assignment.");
+    }
 }
