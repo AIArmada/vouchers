@@ -39,7 +39,7 @@ return new class extends Migration
         });
 
         // Partial unique indexes are supported by PostgreSQL and SQLite only.
-        // On MySQL the one-active-entry rule is enforced application-side by
+        // On SQLite the one-active-entry rule is enforced application-side by
         // AddVoucherToWallet (voucher-row lock plus unique-violation rescue).
         if (in_array(ConnectionDriver::name(Schema::getConnection()), ['pgsql', 'sqlite'], true)) {
             DB::statement("CREATE UNIQUE INDEX voucher_wallets_one_active_per_holder ON {$tableName} (voucher_id, holder_type, holder_id) WHERE redeemed_at IS NULL");

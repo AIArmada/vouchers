@@ -34,7 +34,7 @@ final class AddVoucherToWallet
 
             // Serialize concurrent claims per voucher. The row lock also
             // enforces the one-active-entry rule on drivers without partial
-            // unique index support (MySQL).
+            // unique index support (PostgreSQL and SQLite).
             $this->voucherQuery()
                 ->whereKey($voucher->id)
                 ->lockForUpdate()
