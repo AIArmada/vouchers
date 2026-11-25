@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Support;
 
 use AIArmada\CommerceSupport\Contracts\OwnerScopeIdentifiable;
-use AIArmada\CommerceSupport\Support\OwnerCache;
+use AIArmada\CommerceSupport\Persistence\OwnerCache;
 use AIArmada\Vouchers\Concerns\NormalizesVoucherCodes;
 use AIArmada\Vouchers\Data\VoucherData;
 use AIArmada\Vouchers\Models\Voucher;
