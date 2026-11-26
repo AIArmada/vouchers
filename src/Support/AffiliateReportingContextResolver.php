@@ -4,17 +4,13 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Support;
 
-use AIArmada\Affiliates\Models\Affiliate;
-use AIArmada\Affiliates\Models\AffiliateAttribution;
-use AIArmada\Affiliates\Models\AffiliateConversion;
+use AIArmada\Affiliates\Features\Reporting\Api\VoucherReportingReader;
 use AIArmada\CommerceSupport\Support\OwnerContext;
 use AIArmada\Orders\Models\Order;
 use AIArmada\Vouchers\Models\VoucherUsage;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
 use Throwable;
-use WeakMap;
 
 final class AffiliateReportingContextResolver
 {
@@ -22,8 +18,6 @@ final class AffiliateReportingContextResolver
      * @var array<string, string|null>
      */
     private array $orderNumberCache = [];
-
-    private WeakMap $usageContextCache;
 
     /**
      * @var array<string, array{
@@ -36,11 +30,6 @@ final class AffiliateReportingContextResolver
      */
     private array $lookupCache = [];
 
-    public function __construct()
-    {
-        $this->usageContextCache = new WeakMap;
-    }
-
     /**
      * @return array{
      *     affiliate_code: string|null,
@@ -52,50 +41,22 @@ final class AffiliateReportingContextResolver
      */
     public function resolve(VoucherUsage $usage): array
     {
-        if (isset($this->usageContextCache[$usage])) {
-            $context = $this->usageContextCache[$usage];
-            if (\is_array($context)) {
-                return $context;
-            }
-        }
-
         $voucherCode = $this->resolveVoucherCode($usage);
+        $reader = $this->reader();
 
-        if ($voucherCode === null || ! $this->isAvailable()) {
-            return $this->cache($usage, $this->emptyContext());
+        if ($voucherCode === null || $reader === null || ! $reader->available()) {
+            return $this->emptyContext();
         }
 
         $orderReference = $this->resolveOrderReference($usage);
-        $cacheKey = $this->scopeCacheKey() . '|' . $voucherCode . '|' . ($orderReference ?? 'none');
+        $cacheKey = serialize([$this->scopeCacheKey(), $voucherCode, $orderReference]);
 
-        if (array_key_exists($cacheKey, $this->lookupCache)) {
-            return $this->cache($usage, $this->lookupCache[$cacheKey]);
-        }
-
-        $context = $this->emptyContext();
-        $conversion = $this->findMatchingConversion($voucherCode, $orderReference);
-
-        if ($conversion !== null) {
-            $context = $this->contextFromConversion($conversion);
-        }
-
-        if (! $this->hasTrackedData($context)) {
-            $attribution = $this->findMatchingAttribution($voucherCode);
-
-            if ($attribution !== null) {
-                $context = $this->contextFromAttribution($attribution);
-            }
-        }
-
-        $context = $this->normalizeContext($context);
-        $this->lookupCache[$cacheKey] = $context;
-
-        return $this->cache($usage, $context);
+        return $this->lookupCache[$cacheKey] ??= $reader->resolve($voucherCode, $orderReference)?->toArray() ?? $this->emptyContext();
     }
 
     public function supportsAffiliateReporting(): bool
     {
-        return $this->isAvailable();
+        return $this->reader()?->available() ?? false;
     }
 
     /**
@@ -103,40 +64,7 @@ final class AffiliateReportingContextResolver
      */
     public function affiliateOptions(): array
     {
-        if ($this->hasTableFor(Affiliate::class)) {
-            /** @var array<string, string> $options */
-            $options = Affiliate::query()
-                ->orderBy('name')
-                ->orderBy('code')
-                ->get(['code', 'name'])
-                ->mapWithKeys(function (Model $affiliate): array {
-                    $code = $this->normalizeString($affiliate->getAttribute('code'));
-
-                    if ($code === null) {
-                        return [];
-                    }
-
-                    $name = $this->normalizeString($affiliate->getAttribute('name'));
-
-                    return [$code => $name !== null ? "{$name} ({$code})" : $code];
-                })
-                ->all();
-
-            return $options;
-        }
-
-        if (! $this->hasTableFor(AffiliateAttribution::class)) {
-            return [];
-        }
-
-        /** @var array<string, string> $options */
-        $options = AffiliateAttribution::query()
-            ->whereNotNull('affiliate_code')
-            ->orderBy('affiliate_code')
-            ->pluck('affiliate_code', 'affiliate_code')
-            ->all();
-
-        return $options;
+        return $this->reader()?->affiliateOptions() ?? [];
     }
 
     /**
@@ -144,7 +72,7 @@ final class AffiliateReportingContextResolver
      */
     public function sourceOptions(): array
     {
-        return $this->attributionOptionsFor('source');
+        return $this->reader()?->attributionOptions('source') ?? [];
     }
 
     /**
@@ -152,7 +80,7 @@ final class AffiliateReportingContextResolver
      */
     public function mediumOptions(): array
     {
-        return $this->attributionOptionsFor('medium');
+        return $this->reader()?->attributionOptions('medium') ?? [];
     }
 
     /**
@@ -160,7 +88,7 @@ final class AffiliateReportingContextResolver
      */
     public function campaignOptions(): array
     {
-        return $this->attributionOptionsFor('campaign');
+        return $this->reader()?->attributionOptions('campaign') ?? [];
     }
 
     /**
@@ -318,9 +246,11 @@ final class AffiliateReportingContextResolver
         ];
     }
 
-    private function isAvailable(): bool
+    private function reader(): ?VoucherReportingReader
     {
-        return $this->hasTableFor(AffiliateConversion::class) || $this->hasTableFor(AffiliateAttribution::class);
+        return interface_exists(VoucherReportingReader::class) && app()->bound(VoucherReportingReader::class)
+            ? app(VoucherReportingReader::class)
+            : null;
     }
 
     private function resolveVoucherCode(VoucherUsage $usage): ?string
@@ -347,124 +277,6 @@ final class AffiliateReportingContextResolver
         return $orderReference !== null ? mb_strtolower($orderReference) : null;
     }
 
-    private function findMatchingConversion(string $voucherCode, ?string $orderReference): ?AffiliateConversion
-    {
-        if (! $this->hasTableFor(AffiliateConversion::class)) {
-            return null;
-        }
-
-        $query = AffiliateConversion::query()
-            ->with(['affiliate', 'attribution.affiliate'])
-            ->whereRaw('LOWER(voucher_code) = ?', [$voucherCode])
-            ->orderByDesc('occurred_at')
-            ->orderByDesc('created_at');
-
-        if ($orderReference !== null) {
-            return $query
-                ->whereRaw('LOWER(external_reference) = ?', [$orderReference])
-                ->first();
-        }
-
-        $matches = $query
-            ->limit(2)
-            ->get();
-
-        if ($matches->count() !== 1) {
-            return null;
-        }
-
-        return $matches->first();
-    }
-
-    private function findMatchingAttribution(string $voucherCode): ?AffiliateAttribution
-    {
-        if (! $this->hasTableFor(AffiliateAttribution::class)) {
-            return null;
-        }
-
-        return AffiliateAttribution::query()
-            ->with(['affiliate'])
-            ->whereRaw('LOWER(voucher_code) = ?', [$voucherCode])
-            ->orderByDesc('last_seen_at')
-            ->orderByDesc('created_at')
-            ->first();
-    }
-
-    /**
-     * @return array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }
-     */
-    private function contextFromConversion(AffiliateConversion $conversion): array
-    {
-        $attribution = $conversion->attribution;
-
-        return [
-            'affiliate_code' => $this->firstNonEmpty(
-                $conversion->affiliate_code,
-                $attribution?->affiliate_code,
-            ),
-            'affiliate_name' => $this->firstNonEmpty(
-                $conversion->affiliate?->name,
-                $attribution?->affiliate?->name,
-            ),
-            'source' => $attribution?->source,
-            'medium' => $attribution?->medium,
-            'campaign' => $attribution?->campaign,
-        ];
-    }
-
-    /**
-     * @return array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }
-     */
-    private function contextFromAttribution(AffiliateAttribution $attribution): array
-    {
-        return [
-            'affiliate_code' => $attribution->affiliate_code,
-            'affiliate_name' => $attribution->affiliate?->name,
-            'source' => $attribution->source,
-            'medium' => $attribution->medium,
-            'campaign' => $attribution->campaign,
-        ];
-    }
-
-    /**
-     * @param  array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }  $context
-     * @return array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }
-     */
-    private function normalizeContext(array $context): array
-    {
-        return [
-            'affiliate_code' => $this->normalizeString($context['affiliate_code']),
-            'affiliate_name' => $this->normalizeString($context['affiliate_name']),
-            'source' => $this->normalizeString($context['source']),
-            'medium' => $this->normalizeString($context['medium']),
-            'campaign' => $this->normalizeString($context['campaign']),
-        ];
-    }
-
     private function normalizeString(mixed $value): ?string
     {
         if (! is_string($value)) {
@@ -474,38 +286,6 @@ final class AffiliateReportingContextResolver
         $normalized = mb_trim($value);
 
         return $normalized !== '' ? $normalized : null;
-    }
-
-    private function firstNonEmpty(mixed ...$values): ?string
-    {
-        foreach ($values as $value) {
-            $normalized = $this->normalizeString($value);
-
-            if ($normalized !== null) {
-                return $normalized;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function attributionOptionsFor(string $column): array
-    {
-        if (! $this->hasTableFor(AffiliateAttribution::class)) {
-            return [];
-        }
-
-        /** @var array<string, string> $options */
-        $options = AffiliateAttribution::query()
-            ->whereNotNull($column)
-            ->orderBy($column)
-            ->pluck($column, $column)
-            ->all();
-
-        return $options;
     }
 
     /**
@@ -558,12 +338,14 @@ final class AffiliateReportingContextResolver
 
     private function resolveOrderNumberById(string $orderId): ?string
     {
-        if (array_key_exists($orderId, $this->orderNumberCache)) {
-            return $this->orderNumberCache[$orderId];
+        $cacheKey = serialize([$this->scopeCacheKey(), $orderId]);
+
+        if (array_key_exists($cacheKey, $this->orderNumberCache)) {
+            return $this->orderNumberCache[$cacheKey];
         }
 
         if (! $this->hasTableFor(Order::class)) {
-            $this->orderNumberCache[$orderId] = null;
+            $this->orderNumberCache[$cacheKey] = null;
 
             return null;
         }
@@ -576,7 +358,7 @@ final class AffiliateReportingContextResolver
             ? $this->normalizeString($order->getAttribute('order_number'))
             : null;
 
-        $this->orderNumberCache[$orderId] = $orderNumber;
+        $this->orderNumberCache[$cacheKey] = $orderNumber;
 
         return $orderNumber;
     }
@@ -593,7 +375,7 @@ final class AffiliateReportingContextResolver
         try {
             $model = new $modelClass;
 
-            return $model instanceof Model && Schema::hasTable($model->getTable());
+            return $model instanceof Model && $model->getConnection()->getSchemaBuilder()->hasTable($model->getTable());
         } catch (Throwable) {
             return false;
         }
@@ -612,28 +394,5 @@ final class AffiliateReportingContextResolver
         }
 
         return $owner->getMorphClass() . '|' . $owner->getKey();
-    }
-
-    /**
-     * @param  array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }  $context
-     * @return array{
-     *     affiliate_code: string|null,
-     *     affiliate_name: string|null,
-     *     source: string|null,
-     *     medium: string|null,
-     *     campaign: string|null,
-     * }
-     */
-    private function cache(VoucherUsage $usage, array $context): array
-    {
-        $this->usageContextCache[$usage] = $context;
-
-        return $context;
     }
 }

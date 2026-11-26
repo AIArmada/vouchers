@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Models;
 
 use AIArmada\Affiliates\Enums\CommissionType;
-use AIArmada\Affiliates\Models\Affiliate;
-use AIArmada\Affiliates\Models\AffiliateProgram;
 use AIArmada\CommerceSupport\Concerns\HasCommerceAudit;
 use AIArmada\CommerceSupport\Concerns\LogsCommerceActivity;
 use AIArmada\CommerceSupport\Support\MoneyFormatter;
@@ -80,8 +78,6 @@ use Spatie\ModelStates\HasStates;
  * @property-read int $wallet_claimed_count
  * @property-read int $wallet_redeemed_count
  * @property-read int $wallet_available_count
- * @property-read Affiliate|null $affiliate
- * @property-read AffiliateProgram|null $affiliateProgram
  * @property-read Model|null $promotion
  */
 class Voucher extends Model implements Auditable
@@ -175,32 +171,6 @@ class Voucher extends Model implements Auditable
         }
 
         return $this->belongsTo(Model::class, 'promotion_id');
-    }
-
-    /**
-     * Get the affiliate that owns this voucher (when aiarmada/affiliates is installed).
-     *
-     * @return BelongsTo<Affiliate, $this>|BelongsTo<Model, $this>
-     */
-    public function affiliate(): BelongsTo
-    {
-        if (\class_exists(Affiliate::class)) {
-            return $this->belongsTo(Affiliate::class, 'affiliate_id');
-        }
-
-        return $this->belongsTo(Model::class, 'affiliate_id');
-    }
-
-    /**
-     * @return BelongsTo<AffiliateProgram, $this>|BelongsTo<Model, $this>
-     */
-    public function affiliateProgram(): BelongsTo
-    {
-        if (! class_exists(AffiliateProgram::class)) {
-            return $this->belongsTo(Model::class, 'affiliate_program_id');
-        }
-
-        return $this->belongsTo(AffiliateProgram::class, 'affiliate_program_id');
     }
 
     /**

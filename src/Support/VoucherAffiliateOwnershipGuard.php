@@ -4,14 +4,9 @@ declare(strict_types=1);
 
 namespace AIArmada\Vouchers\Support;
 
-use AIArmada\Affiliates\Models\Affiliate;
-use AIArmada\Affiliates\Models\AffiliateProgram;
-use AIArmada\CommerceSupport\Support\OwnerWriteGuard;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Database\Eloquent\Model;
+use AIArmada\Affiliates\Features\Identity\Api\AffiliateReferenceReader;
+use AIArmada\Affiliates\Features\Programs\Api\ProgramReferenceReader;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
-use RuntimeException;
 
 final class VoucherAffiliateOwnershipGuard
 {
@@ -21,20 +16,18 @@ final class VoucherAffiliateOwnershipGuard
      */
     public static function sanitize(array $data): array
     {
-        $data = self::sanitizeRelation($data, 'affiliate_id', 'affiliateId', Affiliate::class);
-        $data = self::sanitizeRelation($data, 'affiliate_program_id', 'affiliateProgramId', AffiliateProgram::class);
+        $data = self::sanitizeRelation($data, 'affiliate_id', 'affiliateId', AffiliateReferenceReader::class);
+        $data = self::sanitizeRelation($data, 'affiliate_program_id', 'affiliateProgramId', ProgramReferenceReader::class);
 
         return $data;
     }
 
     /**
-     * @template TModel of Model
-     *
-     * @param  class-string<TModel>  $modelClass
+     * @param  class-string<AffiliateReferenceReader|ProgramReferenceReader>  $readerClass
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private static function sanitizeRelation(array $data, string $snakeKey, string $camelKey, string $modelClass): array
+    private static function sanitizeRelation(array $data, string $snakeKey, string $camelKey, string $readerClass): array
     {
         $hasSnakeKey = array_key_exists($snakeKey, $data);
         $hasCamelKey = array_key_exists($camelKey, $data);
@@ -59,34 +52,25 @@ final class VoucherAffiliateOwnershipGuard
             ]);
         }
 
-        $data[$snakeKey] = self::resolveOwnedId($modelClass, (string) $value, $snakeKey);
+        $data[$snakeKey] = self::resolveOwnedId($readerClass, (string) $value, $snakeKey);
 
         return $data;
     }
 
     /**
-     * @template TModel of Model
-     *
-     * @param  class-string<TModel>  $modelClass
+     * @param  class-string<AffiliateReferenceReader|ProgramReferenceReader>  $readerClass
      */
-    private static function resolveOwnedId(string $modelClass, string $id, string $field): string
+    private static function resolveOwnedId(string $readerClass, string $id, string $field): string
     {
-        if (! config('affiliates.owner.enabled', false)) {
-            return $id;
-        }
-
-        try {
-            return (string) OwnerWriteGuard::findOrFailForOwner(
-                $modelClass,
-                $id,
-                includeGlobal: (bool) config('affiliates.owner.include_global', false),
-                message: self::accessDeniedMessage($field),
-            )->getKey();
-        } catch (AuthorizationException | InvalidArgumentException | RuntimeException) {
+        if (! interface_exists($readerClass)
+            || ! app()->bound($readerClass)
+            || ! app($readerClass)->exists($id)) {
             throw ValidationException::withMessages([
                 $field => self::accessDeniedMessage($field),
             ]);
         }
+
+        return $id;
     }
 
     private static function accessDeniedMessage(string $field): string
