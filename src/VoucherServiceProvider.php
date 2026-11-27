@@ -5,10 +5,9 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers;
 
 use AIArmada\Affiliates\Contracts\AffiliateRemovalGuard;
-use AIArmada\Cart\CartManager;
 use AIArmada\Cart\Conditions\ConditionProviderRegistry;
-use AIArmada\Cart\Contracts\CartManagerInterface;
 use AIArmada\Cart\Facades\Cart as CartFacade;
+use AIArmada\Cart\Runtime\CartManagerInterface;
 use AIArmada\Cart\Services\CartConditionResolver;
 use AIArmada\Vouchers\Cart\VoucherConditionProvider;
 use AIArmada\Vouchers\Conditions\VoucherCondition;
@@ -26,7 +25,6 @@ use AIArmada\Vouchers\Support\AffiliateIntegrationRegistrar;
 use AIArmada\Vouchers\Support\CartManagerWithVouchers;
 use AIArmada\Vouchers\Support\VoucherAffiliateRemovalGuard;
 use AIArmada\Vouchers\Support\VoucherRulesFactory;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Event;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -125,16 +123,12 @@ final class VoucherServiceProvider extends PackageServiceProvider
                 ->register(VoucherConditionProvider::class);
         }
 
-        $this->app->extend('cart', function (CartManagerInterface $manager, $app): CartManagerInterface {
+        $this->app->extend('cart', function (CartManagerInterface $manager): CartManagerInterface {
             if ($manager instanceof CartManagerWithVouchers) {
                 return $manager;
             }
 
             $proxy = CartManagerWithVouchers::fromCartManager($manager);
-
-            /** @var Application $app */
-            $app->instance(CartManager::class, $proxy);
-            $app->instance(CartManagerInterface::class, $proxy);
 
             CartFacade::clearResolvedInstance('cart');
 

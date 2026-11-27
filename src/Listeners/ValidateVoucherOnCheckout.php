@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Listeners;
 
 use AIArmada\Cart\Cart;
-use AIArmada\Cart\Contracts\CartManagerInterface;
+use AIArmada\Cart\Runtime\CartManagerInterface;
 use AIArmada\Vouchers\Actions\RemoveVoucherFromCart;
 use AIArmada\Vouchers\Actions\ValidateVoucherCode;
 use AIArmada\Vouchers\Exceptions\VoucherValidationException;

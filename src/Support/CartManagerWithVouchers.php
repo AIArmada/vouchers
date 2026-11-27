@@ -6,7 +6,7 @@ namespace AIArmada\Vouchers\Support;
 
 use AIArmada\Cart\Cart;
 use AIArmada\Cart\CartManager;
-use AIArmada\Cart\Contracts\CartManagerInterface;
+use AIArmada\Cart\Runtime\CartManagerInterface;
 use Illuminate\Database\Eloquent\Model;
 
 /**
