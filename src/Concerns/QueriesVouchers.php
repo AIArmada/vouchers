@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AIArmada\Vouchers\Concerns;
 
 use AIArmada\CommerceSupport\Support\OwnerContext;
+use AIArmada\CommerceSupport\Support\OwnerScopeOverride;
 use AIArmada\Vouchers\Models\Voucher;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -44,6 +45,7 @@ trait QueriesVouchers
 
     protected function shouldIncludeGlobal(): bool
     {
-        return (bool) config('vouchers.owner.include_global', false);
+        return ! OwnerScopeOverride::suppressIncludeGlobal()
+            && (bool) config('vouchers.owner.include_global', false);
     }
 }
